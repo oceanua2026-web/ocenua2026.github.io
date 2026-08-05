@@ -849,7 +849,7 @@ function renderMenuContent(sectionId) {
     ]),
     about: () => renderStaticSection("Про програму", [
       "Авторське право © Бортник В. М., 2026. Усі права захищено.",
-      "Версія від 31.07.2026, 20:35"
+      "Версія від 05.08.2026, 03:49"
     ]),
     exit: renderExitSection
   };
