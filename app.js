@@ -73,8 +73,6 @@ const menuItems = [
   { id: "cities", label: "Місто", hint: "Області, райони, громади, населені пункти" },
   { id: "flashcards", label: "Флешкартки", hint: "Класи, предмети, підручники, тести" },
   { id: "stats", label: "Статистика", hint: "Результати навчання" },
-  { id: "textbooks", label: "Підручники", hint: "Класи 1-12 та електронні книги" },
-  { id: "nmt", label: "НМТ", hint: "Картки для підготовки до іспитів" },
   { id: "python", label: "Python", hint: "Програмування і тести" },
   { id: "schedule", label: "Розклад", hint: "Фото або файл розкладу" },
   { id: "chat", label: "Чат", hint: "Школа, район, громада" },
@@ -535,24 +533,43 @@ function buildFlashcardGradeData(grade) {
 
   const subjects = {};
   (config.subjects || []).forEach((subjectConfig) => {
-    const sourceYears = subjectConfig.sourceYears || config.sourceYears || getNmtYearIds();
     const variants = [];
 
-    sourceYears.forEach((sourceYear) => {
-      const sourceSubject = nmtData.years?.[sourceYear]?.subjects?.[subjectConfig.id];
-      if (!sourceSubject) return;
-
-      (sourceSubject.variants || []).forEach((variant, index) => {
-        variants.push({
-          ...variant,
-          id: `${sourceYear}_${getNmtVariantId(variant, index)}`,
-          label: variant.label || `Варіант ${index + 1}`,
-          session: `${sourceYear}${variant.session ? ` · ${variant.session}` : ""}`,
-          sourceYear,
-          sourceSubjectId: subjectConfig.id
+    if (subjectConfig.aggregateYear) {
+      // Псевдо-предмет "НМТ <рік>": збирає всі варіанти з усіх реальних
+      // предметів НМТ за вказаний рік у єдиний список праворуч.
+      const yearData = nmtData.years?.[subjectConfig.aggregateYear];
+      const yearSubjects = yearData?.subjects || {};
+      Object.entries(yearSubjects).forEach(([realSubjectId, realSubject]) => {
+        (realSubject.variants || []).forEach((variant, index) => {
+          variants.push({
+            ...variant,
+            id: `${subjectConfig.aggregateYear}_${realSubjectId}_${getNmtVariantId(variant, index)}`,
+            label: `${realSubject.label || realSubjectId}${variant.label ? ` · ${variant.label}` : ""}`,
+            session: `${subjectConfig.aggregateYear}${variant.session ? ` · ${variant.session}` : ""}`,
+            sourceYear: subjectConfig.aggregateYear,
+            sourceSubjectId: realSubjectId
+          });
         });
       });
-    });
+    } else {
+      const sourceYears = subjectConfig.sourceYears || config.sourceYears || getNmtYearIds();
+      sourceYears.forEach((sourceYear) => {
+        const sourceSubject = nmtData.years?.[sourceYear]?.subjects?.[subjectConfig.id];
+        if (!sourceSubject) return;
+
+        (sourceSubject.variants || []).forEach((variant, index) => {
+          variants.push({
+            ...variant,
+            id: `${sourceYear}_${getNmtVariantId(variant, index)}`,
+            label: variant.label || `Варіант ${index + 1}`,
+            session: `${sourceYear}${variant.session ? ` · ${variant.session}` : ""}`,
+            sourceYear,
+            sourceSubjectId: subjectConfig.id
+          });
+        });
+      });
+    }
 
     if (variants.length) {
       subjects[subjectConfig.id] = {
@@ -571,9 +588,38 @@ function buildFlashcardGradeData(grade) {
   };
 }
 
+function buildNmtStandaloneFlashcardData() {
+  const subjects = {};
+  ["2026", "2025"].forEach((year) => {
+    const yearSubjects = nmtData.years?.[year]?.subjects || {};
+    const variants = [];
+    Object.entries(yearSubjects).forEach(([realSubjectId, realSubject]) => {
+      (realSubject.variants || []).forEach((variant, index) => {
+        variants.push({
+          ...variant,
+          id: `${year}_${realSubjectId}_${getNmtVariantId(variant, index)}`,
+          label: `${realSubject.label || realSubjectId}${variant.label ? ` · ${variant.label}` : ""}`,
+          session: `${year}${variant.session ? ` · ${variant.session}` : ""}`,
+          sourceYear: year,
+          sourceSubjectId: realSubjectId
+        });
+      });
+    });
+    if (variants.length) {
+      subjects[year] = { id: year, label: year, variants };
+    }
+  });
+  return {
+    label: "НМТ",
+    description: "",
+    subjects,
+    pendingSubjects: []
+  };
+}
+
 function getFlashcardGradeData(grade) {
   const key = getFlashcardYearKey(grade);
-  const data = buildFlashcardGradeData(grade);
+  const data = grade === "nmt" ? buildNmtStandaloneFlashcardData() : buildFlashcardGradeData(grade);
   nmtData.years[key] = data;
   return data;
 }
@@ -816,11 +862,6 @@ function renderMenuContent(sectionId) {
     return;
   }
 
-  if (sectionId === "textbooks") {
-    renderLearningSection("Підручники", "Тут буде вибір підручників України за класами, авторами і предметами.", true);
-    return;
-  }
-
   if (sectionId === "settings") {
     renderSettingsSection();
     return;
@@ -828,7 +869,6 @@ function renderMenuContent(sectionId) {
 
   const renderers = {
     stats: renderStatsSection,
-    nmt: renderNmtSection,
     python: renderPythonSection,
     schedule: () => renderStaticSection("Розклад", [
       "Сторінка для фото або файлу з розкладом уроків.",
@@ -848,8 +888,8 @@ function renderMenuContent(sectionId) {
       "Пізніше тут буде фільтр за містом, громадою, напрямом і організацією."
     ]),
     about: () => renderStaticSection("Про програму", [
-      "Авторське право © Бортник В. М., 2026. Усі права захищено.",
-      "Версія від 05.08.2026, 03:49"
+      "Авторське право © Бортнік О. В. & Бортнік В. М., 2026. Усі права захищено.",
+      "Версія від 16.08.2026, 19:17"
     ]),
     exit: renderExitSection
   };
@@ -1611,7 +1651,9 @@ function renderFlashcardsSection(
   const previousGrade = selectedFlashcardGrade;
   const previousSubject = selectedFlashcardSubject;
   const requestedGrade = String(gradeId || getDefaultFlashcardGrade());
-  selectedFlashcardGrade = schoolSubjectsByGrade[requestedGrade] ? requestedGrade : getDefaultFlashcardGrade();
+  selectedFlashcardGrade = (schoolSubjectsByGrade[requestedGrade] || requestedGrade === "nmt")
+    ? requestedGrade
+    : getDefaultFlashcardGrade();
 
   const flashYearKey = getFlashcardYearKey(selectedFlashcardGrade);
   const gradeData = getFlashcardGradeData(selectedFlashcardGrade);
@@ -1667,6 +1709,9 @@ function renderFlashcardsSection(
               </button>
             `;
           }).join("")}
+          <button class="${selectedFlashcardGrade === "nmt" ? "is-selected" : ""}" type="button" data-flash-grade="nmt" title="Картки для підготовки до НМТ">
+            НМТ
+          </button>
         </div>
         ${subjects.length ? `
           <label class="nmt-subject-select">
@@ -1710,7 +1755,9 @@ function renderFlashcardsSection(
 
   menuContent.querySelectorAll("[data-flash-grade]").forEach((button) => {
     button.addEventListener("click", () => {
-      setActiveLearningGrade(button.dataset.flashGrade);
+      if (button.dataset.flashGrade !== "nmt") {
+        setActiveLearningGrade(button.dataset.flashGrade);
+      }
       renderFlashcardsSection(button.dataset.flashGrade, "", 0, 0);
     });
   });
