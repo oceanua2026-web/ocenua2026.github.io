@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "calculationChecks": 25,
+  "reviewedRecords": 452,
+  "markdownCopiesVerified": 452,
+  "correctKeyDistribution": {
+    "А": 109,
+    "Б": 110,
+    "В": 124,
+    "Г": 109
+  }
+}

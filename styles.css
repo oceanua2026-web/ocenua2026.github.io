@@ -1341,6 +1341,28 @@ button {
   margin: 0;
 }
 
+.nmt-card-media {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  margin: 2px 0 0;
+}
+
+.nmt-card-media img {
+  display: block;
+  max-width: min(100%, 520px);
+  max-height: 280px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .94);
+  object-fit: contain;
+}
+
+.nmt-card-media figcaption {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
 .nmt-question img,
 .nmt-option-text img {
   display: block;
@@ -1567,6 +1589,8 @@ button {
   padding-top: 4px;
   color: var(--text);
   line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .nmt-correct-pairs {
@@ -1973,3 +1997,17 @@ button {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
+
+/* City education directory */
+.education-search { display: grid; gap: 8px; margin: 20px 0 12px; }
+.education-group { margin-top: 24px; }
+.education-group h3 span, .education-card p, .education-empty, #educationResultCount { color: var(--muted); }
+.education-card { margin-top: 10px; min-width: 0; }
+.education-card h4 { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.education-card p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+
+.education-map-link { border: 0; background: transparent; color: var(--text); padding: 0; text-align: left; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.education-map-link:hover, .education-map-link:focus-visible { color: #83dfff; }
+
+.profile-place-picker { cursor: pointer; text-align: left; }
+.profile-place-picker:hover, .profile-place-picker:focus-visible { border-color: #83dfff; }

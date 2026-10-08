@@ -1,0 +1,29 @@
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/User/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const root=path.resolve(__dirname,'..');
+const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname==='/'?'/index.html':new URL(req.url,'http://localhost').pathname));if(!file.startsWith(root+path.sep)){res.writeHead(403);return res.end();}fs.readFile(file,(err,data)=>{if(err){res.writeHead(404);return res.end();}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':file.endsWith('.png')?'image/png':'application/octet-stream');res.end(data);});});
+(async()=>{await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));let browser;try{
+ for(const channel of ['msedge','chrome',undefined]){try{browser=await chromium.launch({channel,headless:true});break;}catch(e){if(channel===undefined)throw e;}}
+ const page=await browser.newPage({viewport:{width:1400,height:1050}});const errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));
+ await page.goto(`http://127.0.0.1:${server.address().port}/`);assert(!requests.some(x=>x.includes('/data/flashcards/')));
+ await page.evaluate(async()=>{openMenu('flashcards');await renderFlashcardsSection('9','',0,0);});
+ await page.locator('.nmt-test-card').waitFor();assert.equal(await page.locator('#flashcardSubjectOnlySelect option').count(),18);assert(requests.some(x=>x.includes('algebra-9-v21.js')));assert(!requests.some(x=>x.includes('biology-9-v21.js')));
+ await page.locator('[data-nmt-select="А"]').click();await page.waitForFunction(()=>getUserNmtSessions().some(s=>s.correctCount===1));
+ let session=await page.evaluate(()=>getUserNmtSessions()[0]);assert.equal(session.grade12,4);assert.equal(session.total,3);
+ assert(await page.locator('.nmt-correct-answer').isVisible());await page.locator('[data-nmt-next]').click();await page.locator('[data-nmt-select="А"]').click();
+ session=await page.evaluate(()=>getUserNmtSessions()[0]);assert.equal(session.correctCount,1);assert.equal(session.wrongCount,1);assert.equal(session.grade12,4);
+ await page.locator('[data-nmt-next]').click();await page.locator('[data-nmt-select="В"]').click();
+ session=await page.evaluate(()=>getUserNmtSessions()[0]);assert.equal(session.answeredCount,3);assert.equal(session.status,'completed');assert.equal(session.grade12,8);
+ await page.locator('[data-nmt-restart]').click();session=await page.evaluate(()=>getUserNmtSessions()[0]);assert.equal(session.answeredCount,0);assert.equal(session.grade12,null);assert.equal((await page.evaluate(()=>getUserNmtSessions())).length,2);
+ await page.selectOption('#flashcardSubjectOnlySelect','biology-9-v21');await page.waitForFunction(()=>document.querySelector('#flashcardSubjectOnlySelect')?.value==='biology-9-v21'&&document.querySelector('.nmt-test-card'));assert(requests.some(x=>x.includes('biology-9-v21.js')));
+ await page.evaluate(async()=>{await ensureFlashcardData('9','civics-9-v21');await ensureFlashcardData('9','informatics-9-v21');await ensureFlashcardData('9','ukraine-history-9-v21');});
+ const review=await page.evaluate(()=>{const data=getFlashcardGradeData('9');return Object.values(data.subjects).flatMap(s=>s.variants).reduce((r,v)=>({excluded:r.excluded+(v.excludedCardCount||0),invalid:r.invalid+v.cards.filter(c=>c.reviewStatus==='needs_revision').length}),{excluded:0,invalid:0});});assert.equal(review.excluded,0);assert.equal(review.invalid,0);
+ await page.evaluate(()=>renderStatsSection());assert((await page.locator('#menuContent').innerText()).includes('8/12'));
+ const downloadPromise=page.waitForEvent('download');await page.locator('#exportNmtStats').click();const download=await downloadPromise;const exportPath=path.join(root,'tools/browser-statistics-export.json');await download.saveAs(exportPath);const exported=JSON.parse(fs.readFileSync(exportPath,'utf8'));assert(exported.sessions.some(s=>s.grade12===8&&s.scoreVersion===2));
+ const migrated=await page.evaluate(()=>{const s={total:5,answers:[{isCorrect:true},{isCorrect:true},{isCorrect:false}],correctCount:99,wrongCount:99};updateNmtSessionScore(s);return s;});assert.equal(migrated.correctCount,2);assert.equal(migrated.wrongCount,1);assert.equal(migrated.grade12,5);
+ await page.screenshot({path:path.join(root,'tools/statistics-verification.png'),fullPage:true});
+ await page.reload();await page.evaluate(()=>renderStatsSection());assert((await page.locator('#menuContent').innerText()).includes('8/12'));
+ for(const grade of ['10','11']) {await page.evaluate(async g=>{activeMenuId='flashcards';await renderFlashcardsSection(g,'',0,0);},grade);assert.equal(await page.locator('.nmt-test-card').count(),0);}
+ assert.deepEqual(errors,[]);await page.screenshot({path:path.join(root,'tools/browser-verification.png'),fullPage:true});
+ fs.writeFileSync(path.join(root,'tools/browser-verification.json'),JSON.stringify({passed:true,checks:['no grade scripts at startup','first subject automatically loaded','18 subjects','lazy subject switch','correct/wrong answers','round up score','completed score','restart','history after reload','empty grades 10 and 11','corrected cards restored','JSON export includes grades','old statistics migration'],errors},null,2));console.log('Passed browser: lazy loading, answering, 4/12 provisional and 8/12 completed, restart, persistent statistics, empty grades 10–11.');
+}finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}})().catch(e=>{console.error(e);process.exitCode=1;});

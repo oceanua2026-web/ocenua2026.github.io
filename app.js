@@ -79,9 +79,8 @@ const menuItems = [
   { id: "tourism", label: "Туризм", hint: "Маршрути і туристичні об'єкти" },
   { id: "ecology", label: "Екологія", hint: "Проблеми міста і об'єкти на карті" },
   { id: "grants", label: "Гранти", hint: "Можливості для організацій" },
-  { id: "settings", label: "Налаштування", hint: "Клас, підручники, місто, школа" },
-  { id: "about", label: "Про програму", hint: "Власник, зв'язок, карти" },
-  { id: "exit", label: "Вихід з профілю", hint: "Підтвердження переходу в режим гостя" }
+  { id: "profile", label: "Профіль", hint: "Гість, реєстрація і редагування профілю" },
+  { id: "about", label: "Про програму", hint: "Власник, зв'язок, карти" }
 ];
 
 const schoolSubjectsByGrade = {
@@ -154,6 +153,9 @@ let selectedNmtVariantIndex = 0;
 let activeNmtSessionId = "";
 let selectedStatsSessionId = "";
 const nmtDraftSelections = {};
+const loadedFlashcardScripts = new Set();
+const flashcardScriptPromises = new Map();
+let flashcardRenderRequest = 0;
 let selectedOblastIndex = -1;
 let selectedRaionIndex = -1;
 let selectedHromadaIndex = -1;
@@ -305,6 +307,7 @@ function saveProfile(profile) {
     ...profile,
     name: String(profile.name || "").trim(),
     schoolName: String(profile.schoolName || "").trim(),
+    groupName: String(profile.groupName || "").trim(),
     email: String(profile.email || "").trim(),
     phone: String(profile.phone || "").trim()
   };
@@ -385,6 +388,7 @@ function syncRegisteredUser(profile) {
     name: profile.name,
     schoolName: profile.schoolName || "",
     schoolCode: profile.schoolCode || "",
+    groupName: profile.groupName || "",
     email: profile.email,
     phone: profile.phone,
     grade: profile.grade || "",
@@ -454,9 +458,9 @@ function getStatsUserKey() {
 function getNmtStats() {
   try {
     const stats = JSON.parse(localStorage.getItem(nmtStatsStorageKey) || "{}");
-    return {
-      sessions: Array.isArray(stats.sessions) ? stats.sessions : []
-    };
+    const sessions = Array.isArray(stats.sessions) ? stats.sessions : [];
+    sessions.forEach(updateNmtSessionScore);
+    return { sessions };
   } catch {
     return { sessions: [] };
   }
@@ -561,6 +565,8 @@ function buildFlashcardGradeData(grade) {
         (sourceSubject.variants || []).forEach((variant, index) => {
           variants.push({
             ...variant,
+            cards: (variant.cards || []).filter((card) => card.reviewStatus !== "needs_revision").map((card, index) => ({...card, number: index + 1})),
+            excludedCardCount: (variant.cards || []).filter((card) => card.reviewStatus === "needs_revision").length,
             id: `${sourceYear}_${getNmtVariantId(variant, index)}`,
             label: variant.label || `Варіант ${index + 1}`,
             session: `${sourceYear}${variant.session ? ` · ${variant.session}` : ""}`,
@@ -571,7 +577,7 @@ function buildFlashcardGradeData(grade) {
       });
     }
 
-    if (variants.length) {
+    if (variants.length || subjectConfig.dataFile) {
       subjects[subjectConfig.id] = {
         id: subjectConfig.id,
         label: subjectConfig.label || subjects[subjectConfig.id]?.label || subjectConfig.id,
@@ -624,6 +630,37 @@ function getFlashcardGradeData(grade) {
   return data;
 }
 
+function loadFlashcardScript(source) {
+  if (!source || loadedFlashcardScripts.has(source)) return Promise.resolve();
+  if (flashcardScriptPromises.has(source)) return flashcardScriptPromises.get(source);
+
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = source;
+    script.async = true;
+    script.addEventListener("load", () => {
+      loadedFlashcardScripts.add(source);
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", () => reject(new Error(`Не вдалося завантажити ${source}`)), { once: true });
+    document.head.appendChild(script);
+  }).catch((error) => {
+    flashcardScriptPromises.delete(source);
+    throw error;
+  });
+
+  flashcardScriptPromises.set(source, promise);
+  return promise;
+}
+
+async function ensureFlashcardData(grade, subjectId = "") {
+  if (grade === "nmt") return;
+  const config = gradeFlashcardCatalog.grades?.[grade];
+  await loadFlashcardScript(config?.dataFile);
+  const subjectConfig = (config?.subjects || []).find((subject) => subject.id === subjectId) || config?.subjects?.[0];
+  await loadFlashcardScript(subjectConfig?.dataFile);
+}
+
 function normalizePhone(value) {
   return String(value || "").replace(/[^\d+]/g, "");
 }
@@ -667,6 +704,7 @@ function readProfileFormDraft(options = {}) {
     ...currentProfile,
     name: document.getElementById("profileName")?.value.trim() || "",
     schoolName,
+    groupName: document.getElementById("profileGroup")?.value.trim() || "",
     email: document.getElementById("profileEmail")?.value.trim() || "",
     phone: document.getElementById("profilePhone")?.value.trim() || "",
     grade: document.getElementById("profileClass")?.value || ""
@@ -701,14 +739,21 @@ function completeProfilePlaceSelection(name, type, context = {}) {
     return true;
   }
 
-  profilePlaceSelectionMode = false;
   saveProfilePlace({
     ...context,
     name,
     type
   });
-  openSubmenu("settings");
-  showMenuNotice("Місто збережено у профілі. Перевірте дані та натисніть «Зберегти профіль».");
+  const directory = window.OCEANUA_CITY_EDUCATION?.[code];
+  const matches = getProfileSchoolMatches(getProfile());
+  if (directory || matches.length) {
+    renderCityEducationDirectory(directory || {name, checkedAt: "за даними карти", schools: matches.map(s => ({...s, type: "Навчальний заклад", sources: []})), colleges: []});
+    showMenuNotice("Оберіть навчальний заклад, щоб заповнити місто та заклад у профілі.");
+  } else {
+    profilePlaceSelectionMode = false;
+    openSubmenu("profile-edit");
+    showMenuNotice("Місто вибрано. Для нього список закладів поки не підключено.");
+  }
   return true;
 }
 
@@ -730,6 +775,11 @@ function getSchoolAddress(school) {
 
 function getProfileSchoolMatches(profile) {
   const placeCode = profile.placeCode || "";
+  const directory = window.OCEANUA_CITY_EDUCATION?.[placeCode];
+  if (directory) return [...directory.schools, ...directory.colleges].map(school => ({
+    name: school.name, code: `${school.type === "Фаховий коледж" ? "edbo" : "isuo"}:${school.id}`,
+    address: school.address, placeCode
+  }));
   if (!mappedSchools.length) return [];
   const filtered = placeCode
     ? mappedSchools.filter((school) => getSchoolPlaceCode(school) === placeCode)
@@ -758,6 +808,7 @@ function saveProfilePlace(place) {
     raionName: place.raionName || "",
     hromadaName: place.hromadaName || "",
     hromadaCenter: place.hromadaCenter || "",
+    groupName: placeChanged ? "" : profile.groupName || "",
     schoolName: placeChanged ? "" : profile.schoolName || "",
     schoolCode: placeChanged ? "" : profile.schoolCode || "",
     schoolAddress: placeChanged ? "" : profile.schoolAddress || "",
@@ -783,9 +834,9 @@ function updateProfileStatus() {
       : "";
   profileStatus.textContent = name
     ? `${name}.${place}${roleText} Статистика буде зберігатися локально.`
-    : `Гість.${place} Статистика не зберігається.`;
-  profileEntryText.textContent = name || "Зареєструватися";
-  profileEntry.setAttribute("aria-label", name ? `Профіль: ${name}` : "Зареєструватися");
+    : `Гість.${place} Статистика зберігається на цьому пристрої.`;
+  profileEntryText.textContent = name || "Гість";
+  profileEntry.setAttribute("aria-label", name ? `Профіль: ${name}` : "Профіль: Гість");
 }
 
 function openMenu(sectionId = "") {
@@ -862,7 +913,7 @@ function renderMenuContent(sectionId) {
     return;
   }
 
-  if (sectionId === "settings") {
+  if (sectionId === "profile-edit") {
     renderSettingsSection();
     return;
   }
@@ -889,9 +940,9 @@ function renderMenuContent(sectionId) {
     ]),
     about: () => renderStaticSection("Про програму", [
       "Авторське право © Бортнік О. В. & Бортнік В. М., 2026. Усі права захищено.",
-      "Версія від 16.08.2026, 19:17"
+      "Версія 2026.10.04.164225. Оновлено 04.10.2026 о 16:42:25 (Europe/Kyiv)."
     ]),
-    exit: renderExitSection
+    profile: renderExitSection
   };
 
   (renderers[sectionId] || renderers.about)();
@@ -1203,6 +1254,11 @@ function maybeOpenMapForName(name, type, closeAfterOpen, context = "") {
       type
     });
   }
+  const educationDirectory = window.OCEANUA_CITY_EDUCATION?.[code];
+  if (educationDirectory && typeof context === "object" && context.openCommunitySite) {
+    renderCityEducationDirectory(educationDirectory);
+    return true;
+  }
   const contextText = typeof context === "string"
     ? context
     : [
@@ -1249,6 +1305,69 @@ function maybeOpenMapForName(name, type, closeAfterOpen, context = "") {
 
   showMenuNotice(`Для "${name}" карта ще не підключена. Дані вже є у довіднику, карту можна додати наступним етапом.`);
   return false;
+}
+
+function renderCityEducationDirectory(directory) {
+  menuContent.innerHTML = `
+    <div class="content-head">
+      <span>Освіта міста</span>
+      <h2>${escapeHtml(directory.name)}</h2>
+      <p>Школи, гімназії, ліцеї та коледжі · Перевірено ${escapeHtml(directory.checkedAt)}</p>
+    </div>
+    <div class="action-row">
+      <button class="ghost-action" id="educationBack" type="button">До списку міст</button>
+      ${profilePlaceSelectionMode ? '<button class="ghost-action" id="educationCancel" type="button">До профілю</button>' : '<button class="ghost-action" id="educationMap" type="button">Карта міста</button>'}
+    </div>
+    <label class="education-search" for="educationSearch">Пошук за назвою або адресою
+      <input class="text-field" id="educationSearch" type="search" placeholder="Наприклад: гімназія № 3 або медичний" autocomplete="off">
+    </label>
+    <p id="educationResultCount" role="status"></p>
+    <div id="educationGroups"></div>
+  `;
+  menuContent.classList.add("is-open");
+  menuContent.setAttribute("aria-hidden", "false");
+  menuContent.scrollTop = 0;
+  const renderGroups = () => {
+    const query = normalizeText(document.getElementById("educationSearch").value).replace(/\s+/g, " ").trim();
+    let matches = 0;
+    document.getElementById("educationGroups").innerHTML = [
+      { title: "Школи, гімназії та ліцеї", entries: directory.schools },
+      { title: "Коледжі", entries: directory.colleges }
+    ].map(({title, entries}) => {
+      const filtered = entries.filter(entry => normalizeText(`${entry.name} ${entry.address} ${entry.type}`).includes(query));
+      matches += filtered.length;
+      return `<section class="education-group"><h3>${title} <span>(${filtered.length}${query ? ` із ${entries.length}` : ""})</span></h3>
+        ${filtered.length ? filtered.map(entry => `<article class="linked-panel education-card">
+          <h4><button class="education-map-link" type="button" data-education-map data-education-id="${escapeHtml(entry.id || entry.code)}">${escapeHtml(entry.name)}</button></h4>
+          <p>${escapeHtml(entry.type)} · ${escapeHtml(entry.address)}</p>
+          ${renderSchoolSources(entry.sources)}
+        </article>`).join("") : '<p class="education-empty">За цим запитом закладів не знайдено.</p>'}
+      </section>`;
+    }).join("");
+    document.querySelectorAll("[data-education-map]").forEach(button => button.addEventListener("click", () => {
+      if (profilePlaceSelectionMode) {
+        const entry = [...directory.schools, ...directory.colleges].find(s => String(s.id || s.code) === button.dataset.educationId);
+        if (!entry) return;
+        const profile = getProfile();
+        saveProfile({...profile, schoolName: entry.name, schoolCode: entry.code || `${entry.type === "Фаховий коледж" ? "edbo" : "isuo"}:${entry.id}`, schoolAddress: entry.address || "", schoolPlaceCode: profile.placeCode || "", groupName: profile.schoolName === entry.name ? profile.groupName || "" : ""});
+        profilePlaceSelectionMode = false;
+        openSubmenu("profile-edit");
+        showMenuNotice("Місто та навчальний заклад вибрано.");
+        return;
+      }
+      openView(directory.mapTarget);
+      closeMenu();
+    }));
+    document.getElementById("educationResultCount").textContent = `Знайдено закладів: ${matches} із ${directory.schools.length + directory.colleges.length}`;
+  };
+  document.getElementById("educationSearch").addEventListener("input", renderGroups);
+  document.getElementById("educationBack").addEventListener("click", () => openSubmenu("cities"));
+  document.getElementById("educationCancel")?.addEventListener("click", () => { profilePlaceSelectionMode = false; openSubmenu("profile-edit"); });
+  document.getElementById("educationMap")?.addEventListener("click", () => {
+    openView(directory.mapTarget);
+    closeMenu();
+  });
+  renderGroups();
 }
 
 function renderCommunitySite(place) {
@@ -1641,7 +1760,35 @@ function renderLearningSection(title, text, withSubjects) {
   });
 }
 
-function renderFlashcardsSection(
+async function renderFlashcardsSection(
+  gradeId = selectedFlashcardGrade || getDefaultFlashcardGrade(),
+  subjectId = selectedFlashcardSubject,
+  cardIndex = selectedFlashcardCardIndex,
+  variantIndex = selectedFlashcardVariantIndex
+) {
+  const requestId = ++flashcardRenderRequest;
+  const requestedGrade = String(gradeId || getDefaultFlashcardGrade());
+  menuContent.innerHTML = `<p class="empty-text">Завантаження карток ${escapeHtml(requestedGrade === "nmt" ? "НМТ" : `${requestedGrade} класу`)}...</p>`;
+  try {
+    await ensureFlashcardData(requestedGrade, subjectId);
+    if (requestId !== flashcardRenderRequest || activeMenuId !== "flashcards") return;
+    renderLoadedFlashcardsSection(requestedGrade, subjectId, cardIndex, variantIndex);
+  } catch (error) {
+    if (requestId !== flashcardRenderRequest) return;
+    menuContent.innerHTML = `
+      <div class="linked-panel">
+        <strong>Не вдалося завантажити картки</strong>
+        <p>${escapeHtml(error.message || "Помилка завантаження файлу.")}</p>
+        <button class="primary-action" type="button" data-flash-retry>Спробувати ще раз</button>
+      </div>
+    `;
+    menuContent.querySelector("[data-flash-retry]")?.addEventListener("click", () => {
+      renderFlashcardsSection(requestedGrade, subjectId, cardIndex, variantIndex);
+    });
+  }
+}
+
+function renderLoadedFlashcardsSection(
   gradeId = selectedFlashcardGrade || getDefaultFlashcardGrade(),
   subjectId = selectedFlashcardSubject,
   cardIndex = selectedFlashcardCardIndex,
@@ -1739,7 +1886,7 @@ function renderFlashcardsSection(
         ` : ""}
       </div>
       ${subjects.length
-        ? (activeSubject ? renderNmtSubject(activeSubject) : "")
+        ? (activeSubject ? `${(activeSubject.variants || []).some((variant) => variant.excludedCardCount) ? `<p class="empty-text">Запитання з підтвердженими змістовими помилками виключено з тестування до виправлення.</p>` : ""}${renderNmtSubject(activeSubject)}` : "")
         : `<p class="empty-text">Для ${escapeHtml(gradeData.label || `${selectedFlashcardGrade} клас`)} тестові флеш-картки ще не додані.</p>`}
       ${gradeData.pendingSubjects?.length ? `
         <div class="linked-panel flashcard-pending">
@@ -2158,15 +2305,10 @@ function renderSettingsSection() {
   const user = getCurrentRegisteredUser();
   const completeProfile = isRegistrationComplete(profile);
   const roleLabel = renderRoleLabel(user?.role || profile.role || "registered");
-  const schoolMatches = getProfileSchoolMatches(profile);
-  const selectedSchoolIndex = schoolMatches.findIndex((school) =>
-    (profile.schoolCode && school.code === profile.schoolCode) ||
-    normalizeText(school.name) === normalizeText(profile.schoolName)
-  );
   menuContent.innerHTML = `
     <div class="content-head">
       <span>Профіль</span>
-      <h2>Налаштування</h2>
+      <h2>Реєстрація і редагування профілю</h2>
       <p>Для локальної реєстрації потрібні ім'я, email і телефон. Школа, інший навчальний заклад і клас необов'язкові.</p>
     </div>
     <label class="field-label" for="profileName">Ім'я</label>
@@ -2175,37 +2317,14 @@ function renderSettingsSection() {
     <input class="text-field" id="profileEmail" type="email" value="${escapeHtml(profile.email || "")}" placeholder="name@example.com">
     <label class="field-label" for="profilePhone">Телефон</label>
     <input class="text-field" id="profilePhone" type="tel" value="${escapeHtml(profile.phone || "")}" placeholder="+380...">
-    <span class="field-label">Місто або населений пункт</span>
-    <div class="selected-place" id="profilePlaceSummary">
-      <strong>${escapeHtml(profile.placeName || profile.city || "Не вибрано")}</strong>
-      <span>${profile.placeCode
-        ? escapeHtml(formatDetails([profile.placeType || "населений пункт", profile.hromadaName, profile.raionName, profile.placeCode]))
-        : "Виберіть населений пункт через довідник, щоб зберегти точну прив'язку."}</span>
-    </div>
-    <button class="ghost-action full-action" id="chooseProfileCity" type="button">Вибрати у меню Місто</button>
-    <label class="field-label" for="profileSchool">Школа або навчальний заклад <span class="optional-mark">необов'язково</span></label>
-    ${profile.placeCode && schoolMatches.length ? `
-      <select class="text-field" id="profileSchoolSelect">
-        <option value="">Ввести вручну або не вибирати</option>
-        ${schoolMatches.map((school, index) => `
-          <option value="${index}"${index === selectedSchoolIndex ? " selected" : ""}>
-            ${escapeHtml(school.name)}
-          </option>
-        `).join("")}
-      </select>
-      <p class="empty-text">Якщо школа є на карті міста, виберіть її зі списку. Поле нижче можна змінити вручну.</p>
-    ` : profile.placeCode ? `
-      <p class="empty-text">Для цього міста шкіл на карті поки немає. Назву можна внести вручну або залишити поле порожнім.</p>
-    ` : `
-      <p class="empty-text">Спочатку виберіть місто, тоді тут з'явиться список шкіл, якщо вони є на карті.</p>
-    `}
-    <input class="text-field" id="profileSchool" type="text" value="${escapeHtml(profile.schoolName || "")}" placeholder="Школа, ліцей, коледж, університет або залиште порожнім">
-    ${profile.schoolCode || profile.schoolAddress ? `
-      <div class="selected-place profile-state">
-        <strong>${escapeHtml(profile.schoolName || "Заклад вибрано")}</strong>
-        <span>${escapeHtml(formatDetails([profile.schoolAddress, profile.schoolCode]))}</span>
-      </div>
-    ` : ""}
+    <label class="field-label" for="profilePlaceSummary">Місто або населений пункт</label>
+    <button class="text-field selected-place profile-place-picker" id="profilePlaceSummary" type="button">
+      <strong>${escapeHtml(profile.placeName || profile.city || "Вибрати місто у меню Місто")}</strong>
+      <span>${profile.placeCode ? escapeHtml(formatDetails([profile.hromadaName, profile.raionName])) : "Натисніть, щоб вибрати місто та навчальний заклад"}</span>
+    </button>
+    <label class="field-label" for="profileSchool">Назва навчального закладу</label>
+    <input class="text-field profile-place-picker" id="profileSchool" type="text" readonly value="${escapeHtml(profile.schoolName || "")}" placeholder="Вибрати навчальний заклад у меню Місто">
+    ${profile.schoolAddress ? `<p class="empty-text">${escapeHtml(profile.schoolAddress)}</p>` : ""}
     <label class="field-label" for="profileClass">Клас <span class="optional-mark">необов'язково</span></label>
     <select class="text-field" id="profileClass">
       <option value="">Не вибрано</option>
@@ -2214,6 +2333,9 @@ function renderSettingsSection() {
         return `<option value="${grade}"${String(profile.grade || "") === grade ? " selected" : ""}>${grade} клас</option>`;
       }).join("")}
     </select>
+    <label class="field-label" for="profileGroup">Назва класу або групи <span class="optional-mark">необов'язково</span></label>
+    <input class="text-field" id="profileGroup" type="text" maxlength="80" value="${escapeHtml(profile.groupName || "")}" placeholder="Наприклад: 9-А, 9-Б, 121 або 122">
+    <p class="empty-text">Для школи вкажіть повну назву класу з літерою, для коледжу — номер групи. Ця назва зберігатиметься у результатах тестів.</p>
     ${completeProfile ? `
       <div class="selected-place profile-state">
         <strong>Профіль зареєстровано</strong>
@@ -2241,39 +2363,14 @@ function renderSettingsSection() {
     }
   });
 
-  document.getElementById("chooseProfileCity").addEventListener("click", () => {
+  const chooseProfilePlaceAndSchool = () => {
     saveProfileDraftFromSettings({ clearPlaceOnIdentityChange: true });
     profilePlaceSelectionMode = true;
     openSubmenu("cities");
-    showMenuNotice("Оберіть конкретний населений пункт. Після вибору ви повернетеся до реєстрації, а введені дані не зникнуть.");
-  });
-
-  const schoolSelect = document.getElementById("profileSchoolSelect");
-  if (schoolSelect) {
-    schoolSelect.addEventListener("change", () => {
-      const draft = readProfileFormDraft({ clearPlaceOnIdentityChange: true });
-      const selectedIndex = Number(schoolSelect.value);
-      if (!Number.isFinite(selectedIndex) || selectedIndex < 0 || !schoolMatches[selectedIndex]) {
-        delete draft.schoolCode;
-        delete draft.schoolAddress;
-        delete draft.schoolPlaceCode;
-        localStorage.setItem(profileStorageKey, JSON.stringify(draft));
-        updateProfileStatus();
-        return;
-      }
-
-      const school = schoolMatches[selectedIndex];
-      localStorage.setItem(profileStorageKey, JSON.stringify({
-        ...draft,
-        schoolName: school.name || "",
-        schoolCode: school.code || "",
-        schoolAddress: school.address || "",
-        schoolPlaceCode: school.placeCode || draft.placeCode || ""
-      }));
-      renderSettingsSection();
-      showMenuNotice("Школу з карти міста додано у профіль. За потреби назву можна змінити вручну.");
-    });
-  }
+    showMenuNotice("Оберіть місто, потім школу або коледж у його списку.");
+  };
+  document.getElementById("profilePlaceSummary").addEventListener("click", chooseProfilePlaceAndSchool);
+  document.getElementById("profileSchool").addEventListener("click", chooseProfilePlaceAndSchool);
 
   ["profileEmail", "profilePhone"].forEach((fieldId) => {
     const field = document.getElementById(fieldId);
@@ -2293,7 +2390,7 @@ function renderSettingsSection() {
   document.getElementById("clearProfile").addEventListener("click", () => {
     profilePlaceSelectionMode = false;
     clearProfile();
-    renderSettingsSection();
+    openSubmenu("profile");
     showMenuNotice("Ви працюєте як гість.");
   });
 
@@ -2305,8 +2402,8 @@ function renderExitSection() {
   menuContent.innerHTML = `
     <div class="content-head">
       <span>Профіль</span>
-      <h2>Вихід з профілю</h2>
-      <p>Ця дія не виконується автоматично. Перехід у режим гостя очистить тільки поточний профіль у цьому браузері, але локальний список зареєстрованих користувачів залишиться для адміністратора.</p>
+      <h2>Профіль</h2>
+      <p>Оберіть гостьовий режим або відкрийте реєстрацію і редагування профілю.</p>
     </div>
     <div class="linked-panel">
       <strong>${escapeHtml(profile.name || "Гість")}</strong>
@@ -2314,20 +2411,19 @@ function renderExitSection() {
     </div>
     <div class="action-row">
       <button class="primary-action" id="continueAsGuest" type="button">Працювати як гість</button>
-      <button class="ghost-action" id="stayInProfile" type="button">Залишитися у профілі</button>
+      <button class="ghost-action" id="stayInProfile" type="button">Реєстрація і редагування профілю</button>
     </div>
   `;
 
   document.getElementById("continueAsGuest").addEventListener("click", () => {
     profilePlaceSelectionMode = false;
     clearProfile();
-    renderSettingsSection();
+    openSubmenu("profile");
     showMenuNotice("Ви працюєте як гість.");
   });
 
   document.getElementById("stayInProfile").addEventListener("click", () => {
-    openSubmenu("settings");
-    showMenuNotice("Профіль залишився активним.");
+    openSubmenu("profile-edit");
   });
 }
 
@@ -2357,8 +2453,8 @@ function renderChatSection() {
         <p>${escapeHtml(formatDetails([profile.name, profile.schoolName, profile.email, profile.phone]))}</p>
         <p>${chatAccess ? "Вам дозволено вести та редагувати чати." : "Адміністратор ще не надав вам право вести чати."}</p>
       ` : `
-        <p>Щоб отримати право вести чати, заповніть ім'я, email і телефон у налаштуваннях. Школа або заклад не є обов'язковими.</p>
-        <button class="primary-action full-action" type="button" id="openChatSettings">Заповнити налаштування</button>
+        <p>Щоб отримати право вести чати, заповніть ім'я, email і телефон у профілі. Школа або заклад не є обов'язковими.</p>
+        <button class="primary-action full-action" type="button" id="openChatSettings">Реєстрація і редагування профілю</button>
       `}
     </div>
     <div class="linked-panel">
@@ -2391,7 +2487,7 @@ function renderChatSection() {
 
   const openSettingsButton = document.getElementById("openChatSettings");
   if (openSettingsButton) {
-    openSettingsButton.addEventListener("click", () => openSubmenu("settings"));
+    openSettingsButton.addEventListener("click", () => openSubmenu("profile-edit"));
   }
 
   if (hasPlace) {
@@ -2426,6 +2522,8 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
   const completedCount = sessions.filter((session) => session.status === "completed").length;
   const totalCorrect = sessions.reduce((sum, session) => sum + Number(session.correctCount || 0), 0);
   const totalWrong = sessions.reduce((sum, session) => sum + Number(session.wrongCount || 0), 0);
+  const completedScores = sessions.filter((session) => session.status === "completed" && session.grade12 != null);
+  const averageGrade = completedScores.length ? (completedScores.reduce((sum, session) => sum + session.grade12, 0) / completedScores.length).toFixed(1) : "—";
 
   menuContent.innerHTML = `
     <div class="content-head">
@@ -2436,8 +2534,11 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
     <div class="stats-strip">
       <div><strong>${sessions.length}</strong><span>запусків</span></div>
       <div><strong>${completedCount}</strong><span>завершено</span></div>
-      <div><strong>${totalCorrect}/${totalCorrect + totalWrong || 0}</strong><span>правильних</span></div>
+      <div><strong>${totalCorrect}</strong><span>правильних</span></div>
+      <div><strong>${totalWrong}</strong><span>неправильних</span></div>
+      <div><strong>${averageGrade}</strong><span>середня оцінка завершених тестів / 12</span></div>
     </div>
+    ${renderGroupStatsPanel()}
     ${sessions.length ? `
       <div class="stats-session-list">
         ${sessions.map((session) => renderStatsSessionRow(session)).join("")}
@@ -2453,6 +2554,7 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
     button.addEventListener("click", () => renderStatsSection(button.dataset.statsSessionId));
   });
 
+  bindGroupStatsPanel();
   const exportButton = document.getElementById("exportNmtStats");
   if (exportButton) {
     exportButton.addEventListener("click", exportNmtStatsFile);
@@ -2469,7 +2571,7 @@ function renderStatsSessionRow(session) {
   return `
     <button class="result-row stats-session-row${session.id === selectedStatsSessionId ? " is-selected" : ""}" type="button" data-stats-session-id="${escapeHtml(session.id)}">
       <strong>${escapeHtml(getNmtSessionLabel(session))}</strong>
-      <span>${formatDateTime(session.startedAt)} · результат ${escapeHtml(score)} · ${escapeHtml(status)}</span>
+      <span>${formatDateTime(session.startedAt)} · результат ${escapeHtml(score)} · ${escapeHtml(renderNmtGradeLabel(session))} · ${escapeHtml(status)}</span>
     </button>
   `;
 }
@@ -2479,7 +2581,10 @@ function renderStatsSessionDetails(session) {
   return `
     <div class="linked-panel stats-session-detail">
       <strong>${escapeHtml(getNmtSessionLabel(session))}</strong>
+      <p>${escapeHtml(formatDetails([session.userName, session.placeName, session.schoolName, session.grade ? `${session.grade} клас` : "", session.groupName ? `Клас / група: ${session.groupName}` : ""]))}</p>
       <p>Старт: ${formatDateTime(session.startedAt)}${session.completedAt ? ` · завершення: ${formatDateTime(session.completedAt)}` : ""}</p>
+      <p>${session.correctCount} правильних · ${session.wrongCount} неправильних · ${session.unansweredCount} без відповіді · ${escapeHtml(renderNmtGradeLabel(session))}</p>
+      <p>Оцінка = 12 × правильні / усі запитання комплекту, округлено вгору (мінімум 1 бал). До завершення тесту оцінка попередня.</p>
       <div class="stats-answer-list">
         ${answers.length ? answers.map((answer) => `
           <div class="stats-answer-row ${answer.isCorrect ? "is-correct" : "is-wrong"}">
@@ -2493,10 +2598,81 @@ function renderStatsSessionDetails(session) {
   `;
 }
 
+let importedGroupSessions = [];
+
+function getGroupStatsSessions() {
+  const sessions = [...getNmtStats().sessions, ...importedGroupSessions];
+  const unique = new Map();
+  sessions.forEach(session => unique.set(`${session.userKey || ""}:${session.id}`, session));
+  return [...unique.values()];
+}
+
+function getStatsGroupKey(session) {
+  return JSON.stringify([session.placeCode || session.placeName || "", session.schoolCode || normalizeText(session.schoolName || ""), String(session.grade || ""), normalizeText(session.groupName || "").replace(/\s+/g, " ").trim()]);
+}
+
+function renderGroupStatsPanel() {
+  const groups = new Map();
+  getGroupStatsSessions().filter(s => s.groupName && s.schoolName).forEach(s => groups.set(getStatsGroupKey(s), s));
+  return `<div class="linked-panel">
+    <strong>Статистика класу / групи для вчителя</strong>
+    <p>Завантажте JSON-файли статистики учнів з їхніх пристроїв. Виберіть заклад і групу для спільного CSV-файлу. Імпортовані результати доступні до перезавантаження сторінки.</p>
+    <label class="field-label" for="groupStatsFiles">Файли статистики учнів (можна декілька)</label>
+    <input class="text-field" id="groupStatsFiles" type="file" accept=".json,application/json" multiple>
+    <p id="groupImportStatus" role="status"></p>
+    <label class="field-label" for="statsGroupSelect">Заклад і клас / група</label>
+    <select class="text-field" id="statsGroupSelect">
+      ${groups.size ? [...groups].map(([key,s]) => `<option value="${escapeHtml(key)}">${escapeHtml(formatDetails([s.placeName, s.schoolName, s.grade ? `${s.grade} клас` : "", s.groupName]))}</option>`).join("") : '<option value="">Немає результатів із закладом та групою</option>'}
+    </select>
+    <button class="ghost-action full-action" id="exportGroupStats" type="button"${groups.size ? "" : " disabled"}>Завантажити статистику групи (CSV)</button>
+  </div>`;
+}
+
+function bindGroupStatsPanel() {
+  document.getElementById("groupStatsFiles").addEventListener("change", async event => {
+    let imported = 0;
+    const failures = [];
+    for (const file of event.target.files) {
+      try {
+        const payload = JSON.parse(await file.text());
+        if (!Array.isArray(payload.sessions) || payload.sessions.some(s => !s || typeof s !== "object" || typeof s.id !== "string" || !Array.isArray(s.answers))) throw new Error("Невірний формат статистики");
+        importedGroupSessions.push(...payload.sessions);
+        imported += payload.sessions.length;
+      } catch { failures.push(file.name); }
+    }
+    renderStatsSection();
+    document.getElementById("groupImportStatus").textContent = `Завантажено результатів: ${imported}.${failures.length ? ` Не вдалося прочитати: ${failures.join(", ")}` : ""}`;
+  });
+  document.getElementById("exportGroupStats").addEventListener("click", () => {
+    const key = document.getElementById("statsGroupSelect").value;
+    if (!key) return;
+    const sessions = getGroupStatsSessions().filter(s => getStatsGroupKey(s) === key);
+    const rows = [["Учень", "Ідентифікатор учня", "Місто", "Код міста", "Заклад", "Код закладу", "Клас", "Клас / група", "Предмет", "Комплект", "Початок", "Завершення", "Статус", "Усього питань", "Правильних", "Неправильних", "Без відповіді", "Оцінка / 12", "Тип оцінки"]];
+    sessions.forEach(s => {
+      updateNmtSessionScore(s);
+      rows.push([s.userName, s.userKey, s.placeName, s.placeCode, s.schoolName, s.schoolCode, s.grade, s.groupName, s.subjectLabel, s.variantLabel, s.startedAt, s.completedAt, s.status, s.total, s.correctCount, s.wrongCount, s.unansweredCount, s.grade12, s.status === "completed" ? "підсумкова" : "попередня"]);
+    });
+    const quote = value => {
+      let text = String(value ?? "");
+      if (/^[=+@-]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+    const blob = new Blob(["\uFEFF" + rows.map(row => row.map(quote).join(";")).join("\r\n")], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const name = String(sessions[0]?.groupName || "group").replace(/[^\p{L}\p{N}_-]+/gu, "_");
+    link.download = `oceanua-group-${name}-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  });
+}
+
 function exportNmtStatsFile() {
   const payload = {
     exportedAt: new Date().toISOString(),
+    schemaVersion: 3,
     userKey: getStatsUserKey(),
+    profile: getProfile(),
     sessions: getUserNmtSessions()
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -2568,6 +2744,10 @@ function createNmtSession(subject, variant, variantIndex, total) {
     id: `nmt-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     userKey: getStatsUserKey(),
     userName: profile.name?.trim() || "Гість",
+    schoolName: profile.schoolName || "",
+    schoolCode: profile.schoolCode || "",
+    grade: profile.grade || "",
+    groupName: profile.groupName || "",
     placeCode: profile.placeCode || "",
     placeName: profile.placeName || profile.city || "",
     startedAt: now,
@@ -2579,11 +2759,17 @@ function createNmtSession(subject, variant, variantIndex, total) {
     subjectId: selectedNmtSubject,
     subjectLabel: subject.label || selectedNmtSubject,
     variantId: getNmtVariantId(variant, variantIndex),
-    variantLabel: [variant.label || `Варіант ${variantIndex + 1}`, variant.session || ""].filter(Boolean).join(" · "),
+    variantLabel: selectedNmtYear.startsWith("grade-")
+      ? (variant.label || variant.session || `Варіант ${variantIndex + 1}`)
+      : [variant.label || `Варіант ${variantIndex + 1}`, variant.session || ""].filter((item, index, items) => item && items.indexOf(item) === index).join(" · "),
     total,
     answeredCount: 0,
     correctCount: 0,
     wrongCount: 0,
+    unansweredCount: total,
+    grade12: null,
+    scorePercent: 0,
+    scoreVersion: 2,
     answers: []
   };
   const stats = getNmtStats();
@@ -2653,10 +2839,29 @@ function areNmtAnswersEqual(selectedKey, correctKey, type = "single") {
   return normalizeNmtAnswer(selectedKey) === normalizeNmtAnswer(correctKey);
 }
 
+// All questions in the deck form the denominator; an unfinished score is provisional.
+function calculateNmtGrade(correctCount, total, answeredCount) {
+  if (!(total > 0) || !(answeredCount > 0)) return null;
+  return Math.max(1, Math.min(12, Math.ceil(12 * Math.max(0, correctCount) / total)));
+}
+
+function updateNmtSessionScore(session) {
+  const answers = Array.isArray(session.answers) ? session.answers : [];
+  session.answeredCount = answers.length;
+  session.correctCount = answers.filter((answer) => answer.isCorrect).length;
+  session.wrongCount = session.answeredCount - session.correctCount;
+  session.unansweredCount = Math.max(0, Number(session.total || 0) - session.answeredCount);
+  session.grade12 = calculateNmtGrade(session.correctCount, Number(session.total || 0), session.answeredCount);
+  session.scorePercent = session.total > 0 ? Math.round(100 * session.correctCount / session.total) : 0;
+  session.scoreVersion = 2;
+}
+
+function renderNmtGradeLabel(session) {
+  return session.grade12 == null ? "Оцінка: —" : `${session.unansweredCount ? "Попередня оцінка" : "Оцінка"}: ${session.grade12}/12`;
+}
+
 function recomputeNmtSession(session) {
-  session.answeredCount = session.answers.length;
-  session.correctCount = session.answers.filter((answer) => answer.isCorrect).length;
-  session.wrongCount = session.answers.filter((answer) => !answer.isCorrect).length;
+  updateNmtSessionScore(session);
   if (session.answeredCount >= session.total) {
     session.status = "completed";
     session.completedAt = session.completedAt || new Date().toISOString();
@@ -2894,7 +3099,7 @@ function renderNmtVariant(variant, variantIndex = 0) {
         <div class="nmt-session-strip">
           <strong>${escapeHtml(nmtData.years?.[selectedNmtYear]?.subjects?.[selectedNmtSubject]?.label || selectedNmtSubject)} · ${escapeHtml(variant.label || "Варіант")}${variant.session ? ` · ${escapeHtml(variant.session)}` : ""}</strong>
           <span>Старт: ${formatDateTime(session.startedAt)}</span>
-          <span>${session.correctCount} правильних · ${session.wrongCount} неправильних · ${session.answeredCount}/${session.total}</span>
+          <span>${session.correctCount} правильних · ${session.wrongCount} неправильних · ${session.answeredCount}/${session.total} · ${escapeHtml(renderNmtGradeLabel(session))}</span>
           <button class="ghost-action" type="button" data-nmt-restart>Почати заново</button>
         </div>
         <div class="nmt-task-nav" aria-label="Завдання НМТ">
@@ -2950,6 +3155,7 @@ function renderNmtCard(card, index, total, session) {
         ${cardDetails.map((detail) => `<span>${escapeHtml(detail)}</span>`).join("")}
       </div>
       <div class="nmt-question">${sanitizeNmtHtml(question)}</div>
+      ${renderNmtCardMedia(card, "question")}
       ${isMatching
         ? renderNmtMatchingCard(card, response)
         : isInput
@@ -2971,6 +3177,16 @@ function renderNmtCard(card, index, total, session) {
       </div>
     </article>
   `;
+}
+
+function renderNmtCardMedia(card, placement = "question") {
+  const media = Array.isArray(card.media) ? card.media : (card.image ? [card] : []);
+  return media.filter((item) => (item.imagePlacement || "question") === placement).map((item) => `
+    <figure class="nmt-card-media">
+      ${sanitizeNmtHtml(`<img src="${item.image}" alt="${item.imageAlt || ""}">`)}
+      ${item.imageCaption ? `<figcaption>${escapeHtml(item.imageCaption)}</figcaption>` : ""}
+    </figure>
+  `).join("");
 }
 
 function renderNmtChoiceCard(card, correctKey, response) {
@@ -3121,7 +3337,7 @@ function renderNmtCorrectContent(card, response) {
   }
   const correctKeys = String(card.correctKey || "").split(";").filter(Boolean);
   if (card.answerText) {
-    return `<p class="nmt-answer-extended">${escapeHtml(card.answerText)}</p>`;
+    return `<p class="nmt-answer-extended">${escapeHtml(card.answerText)}</p>${response ? renderNmtCardMedia(card, "answer") : ""}`;
   }
   const correctOptions = (card.options || []).filter((option) => correctKeys.includes(option.key));
   if (!correctOptions.length) {
@@ -3149,7 +3365,7 @@ function sanitizeNmtHtml(value) {
     .replace(/<img\b([^>]*)>/gi, (match, attrs) => {
       const src = (attrs.match(/\ssrc=["']([^"']+)["']/i) || [])[1] || "";
       const alt = (attrs.match(/\salt=["']([^"']*)["']/i) || [])[1] || "";
-      if (!/^https:\/\/zno\.osvita\.ua\//.test(src)) return "";
+      if (!/^assets\/[a-z0-9/_-]+\.png$/i.test(src)) return "";
       return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`;
     })
     .replace(/<\s*([a-z0-9]+)(?:\s[^>]*)?\s*\/?>/gi, (match, tag) => {
@@ -3184,7 +3400,7 @@ menuToggle.addEventListener("click", () => {
   }
   openMenu();
 });
-profileEntry.addEventListener("click", () => openMenu("settings"));
+profileEntry.addEventListener("click", () => openMenu("profile"));
 closeMenuButton.addEventListener("click", closeMenu);
 drawerBackdrop.addEventListener("click", closeMenu);
 

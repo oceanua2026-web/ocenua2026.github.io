@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "checks": [
+    "no grade scripts at startup",
+    "first subject automatically loaded",
+    "18 subjects",
+    "lazy subject switch",
+    "correct/wrong answers",
+    "round up score",
+    "completed score",
+    "restart",
+    "history after reload",
+    "empty grades 10 and 11",
+    "corrected cards restored",
+    "JSON export includes grades",
+    "old statistics migration"
+  ],
+  "errors": []
+}
