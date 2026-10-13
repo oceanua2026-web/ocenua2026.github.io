@@ -381,7 +381,7 @@ function syncRegisteredUser(profile) {
   const id = profile.id || buildUserId(profile);
   const existingIndex = users.findIndex((user) => user.id === id || normalizeEmail(user.email) === normalizeEmail(profile.email));
   const existing = existingIndex >= 0 ? users[existingIndex] : null;
-  const firstAdmin = !users.length && !existing;
+  const firstAdmin = false; // Адміністратора ніколи не призначаємо автоматично: лише власник у Firebase
   const now = new Date().toISOString();
   const user = {
     id,
@@ -435,6 +435,34 @@ function syncCurrentProfilePermissions(users = getRegisteredUsers()) {
     chatAccess: user.chatAccess
   }));
   updateProfileStatus();
+}
+
+function applyCloudProfile(data) {
+  if (!data) return;
+  const keys = ["name", "email", "phone", "schoolName", "schoolCode", "schoolAddress", "placeName", "placeCode", "hromadaName", "raionName", "grade", "groupName"];
+  const next = { ...getProfile() };
+  keys.forEach((key) => { if (data[key] !== undefined) next[key] = data[key]; });
+  next.id = data.uid;
+  next.role = data.role || "registered";
+  next.chatAccess = Boolean(data.chatAccess) || next.role === "administrator" || next.role === "teacher";
+  localStorage.setItem(profileStorageKey, JSON.stringify(next));
+  const users = getRegisteredUsers().filter((user) => user.id !== next.id && normalizeEmail(user.email) !== normalizeEmail(next.email));
+  users.push({
+    id: next.id, name: next.name, schoolName: next.schoolName || "", schoolCode: next.schoolCode || "", groupName: next.groupName || "",
+    email: next.email, phone: next.phone, grade: next.grade || "", city: next.placeName || "", placeCode: next.placeCode || "",
+    role: next.role, chatAccess: next.chatAccess, teacherRequested: Boolean(data.teacherRequested), createdAt: "", updatedAt: new Date().toISOString()
+  });
+  saveRegisteredUsers(users);
+  updateProfileStatus();
+}
+
+function applyCloudUsers(list) {
+  // Для адміністратора: повний список користувачів береться з Firebase, а не з браузера.
+  saveRegisteredUsers((list || []).map((user) => ({
+    id: user.id, name: user.name || "", schoolName: user.schoolName || "", schoolCode: user.schoolCode || "", groupName: user.groupName || "",
+    email: user.email || "", phone: user.phone || "", grade: user.grade || "", city: user.placeName || "", placeCode: user.placeCode || "",
+    role: user.role || "registered", chatAccess: Boolean(user.chatAccess), teacherRequested: Boolean(user.teacherRequested), createdAt: "", updatedAt: ""
+  })));
 }
 
 function isAdminProfile() {
@@ -940,7 +968,7 @@ function renderMenuContent(sectionId) {
     ]),
     about: () => renderStaticSection("Про програму", [
       "Авторське право © Бортнік О. В. & Бортнік В. М., 2026. Усі права захищено.",
-      "Версія 2026.10.10.005127. Оновлено 10.10.2026 о 00:51:27 (Europe/Kyiv)."
+      "Версія 2026.10.13.163422. Оновлено 13.10.2026 о 16:34:22 (Europe/Kyiv)."
     ]),
     profile: renderExitSection
   };
@@ -2203,6 +2231,7 @@ function renderPythonSection(
 function renderRoleLabel(role) {
   const labels = {
     administrator: "Адміністратор",
+    teacher: "Вчитель",
     editor: "Редактор",
     chat_manager: "Веде чати",
     registered: "Зареєстрований"
@@ -2225,9 +2254,10 @@ function renderAdminPanel() {
             <div class="admin-user-main">
               <strong>${escapeHtml(user.name || "Без імені")}</strong>
               <span>${escapeHtml(formatDetails([user.schoolName, user.city, user.email, user.phone]))}</span>
+              ${user.teacherRequested && user.role === "registered" ? `<span class="optional-mark">⚠ просить права вчителя — виберіть «Вчитель» і збережіть</span>` : ""}
             </div>
             <select class="text-field compact-field" data-admin-role>
-              ${["registered", "chat_manager", "editor", "administrator"].map((role) =>
+              ${["registered", "teacher", "chat_manager", "editor", "administrator"].map((role) =>
                 `<option value="${role}"${user.role === role ? " selected" : ""}>${renderRoleLabel(role)}</option>`
               ).join("")}
             </select>
@@ -2261,16 +2291,24 @@ function bindAdminPanel() {
 
   const saveUsersButton = document.getElementById("saveAdminUsers");
   if (saveUsersButton) {
-    saveUsersButton.addEventListener("click", () => {
+    saveUsersButton.addEventListener("click", async () => {
       const users = getRegisteredUsers();
       menuContent.querySelectorAll("[data-user-id]").forEach((row) => {
         const user = users.find((item) => item.id === row.dataset.userId);
         if (!user) return;
         user.role = row.querySelector("[data-admin-role]").value;
-        user.chatAccess = row.querySelector("[data-admin-chat]").checked || user.role === "administrator" || user.role === "chat_manager";
+        user.chatAccess = row.querySelector("[data-admin-chat]").checked || user.role === "administrator" || user.role === "chat_manager" || user.role === "teacher";
         user.updatedAt = new Date().toISOString();
       });
       saveRegisteredUsers(users);
+      if (window.OceanAuth?.enabled) {
+        try {
+          for (const u of users) await window.OceanAuth.setRole(u.id, u.role, u.chatAccess);
+        } catch (error) {
+          showMenuNotice(window.OceanAuth.errorText(error));
+          return;
+        }
+      }
       renderSettingsSection();
       showMenuNotice("Права користувачів збережено.");
     });
@@ -2305,6 +2343,9 @@ function renderSettingsSection() {
   const user = getCurrentRegisteredUser();
   const completeProfile = isRegistrationComplete(profile);
   const roleLabel = renderRoleLabel(user?.role || profile.role || "registered");
+  const cloud = window.OceanAuth;
+  const cloudOn = Boolean(cloud?.enabled);
+  const signedIn = Boolean(cloudOn && cloud.currentUser());
   menuContent.innerHTML = `
     <div class="content-head">
       <span>Профіль</span>
@@ -2314,9 +2355,16 @@ function renderSettingsSection() {
     <label class="field-label" for="profileName">Ім'я</label>
     <input class="text-field" id="profileName" type="text" value="${escapeHtml(profile.name || "")}" placeholder="Наприклад: Олена">
     <label class="field-label" for="profileEmail">Email</label>
-    <input class="text-field" id="profileEmail" type="email" value="${escapeHtml(profile.email || "")}" placeholder="name@example.com">
+    <input class="text-field" id="profileEmail" type="email" value="${escapeHtml(profile.email || "")}" placeholder="name@example.com"${signedIn ? " readonly" : ""}>
     <label class="field-label" for="profilePhone">Телефон</label>
     <input class="text-field" id="profilePhone" type="tel" value="${escapeHtml(profile.phone || "")}" placeholder="+380...">
+    ${cloudOn && !signedIn ? `
+      <label class="field-label" for="profilePassword">Пароль <span class="optional-mark">мінімум 8 символів</span></label>
+      <input class="text-field" id="profilePassword" type="password" autocomplete="new-password" minlength="8">
+      <label class="field-label" for="profilePassword2">Повторіть пароль</label>
+      <input class="text-field" id="profilePassword2" type="password" autocomplete="new-password" minlength="8">
+    ` : ""}
+    ${cloudOn ? "" : `<p class="empty-text">Firebase ще не налаштований: працює локальний режим без пароля, а права адміністратора не видаються.</p>`}
     <label class="field-label" for="profilePlaceSummary">Місто або населений пункт</label>
     <button class="text-field selected-place profile-place-picker" id="profilePlaceSummary" type="button">
       <strong>${escapeHtml(profile.placeName || profile.city || "Вибрати місто у меню Місто")}</strong>
@@ -2333,9 +2381,9 @@ function renderSettingsSection() {
         return `<option value="${grade}"${String(profile.grade || "") === grade ? " selected" : ""}>${grade} клас</option>`;
       }).join("")}
     </select>
-    <label class="field-label" for="profileGroup">Назва класу або групи <span class="optional-mark">необов'язково</span></label>
+    <label class="field-label" for="profileGroup">Назва класу або групи <span class="optional-mark">вчителі пишуть: вчитель</span></label>
     <input class="text-field" id="profileGroup" type="text" maxlength="80" value="${escapeHtml(profile.groupName || "")}" placeholder="Наприклад: 9-А, 9-Б, 121 або 122">
-    <p class="empty-text">Для школи вкажіть повну назву класу з літерою, для коледжу — номер групи. Ця назва зберігатиметься у результатах тестів.</p>
+    <p class="empty-text">Для школи вкажіть повну назву класу з літерою, для коледжу — номер групи. Вчитель пише слово «вчитель»: це лише запит, права вчителя підтверджує адміністратор.</p>
     ${completeProfile ? `
       <div class="selected-place profile-state">
         <strong>Профіль зареєстровано</strong>
@@ -2345,23 +2393,69 @@ function renderSettingsSection() {
       <p class="empty-text">Для реєстрації потрібні ім'я, email і телефон. Школу/заклад і клас можна не заповнювати.</p>
     `}
     <div class="action-row">
-      <button class="primary-action" id="saveProfile" type="button">Зберегти профіль</button>
-      <button class="ghost-action" id="clearProfile" type="button">Працювати як гість</button>
+      ${cloudOn && !signedIn
+        ? `<button class="primary-action" id="cloudRegister" type="button">Зареєструватися</button>
+           <button class="ghost-action" id="cloudLogin" type="button">Увійти</button>`
+        : `<button class="primary-action" id="saveProfile" type="button">Зберегти профіль</button>`}
+      ${signedIn
+        ? `<button class="ghost-action" id="cloudLogout" type="button">Вийти</button>`
+        : `<button class="ghost-action" id="clearProfile" type="button">Працювати як гість</button>`}
     </div>
+    ${cloudOn && !signedIn ? `<button class="ghost-action full-action" id="cloudReset" type="button">Забув пароль</button>` : ""}
     ${renderAdminPanel()}
   `;
 
-  document.getElementById("saveProfile").addEventListener("click", () => {
-    const registration = saveProfile(readProfileFormDraft({ clearPlaceOnIdentityChange: true }));
+  const cloudBusy = async (task) => {
+    try { await task(); } catch (error) { showMenuNotice(cloud.errorText(error)); }
+  };
+  document.getElementById("cloudRegister")?.addEventListener("click", () => cloudBusy(async () => {
+    const draft = readProfileFormDraft({ clearPlaceOnIdentityChange: false });
+    const password = document.getElementById("profilePassword").value;
+    if (!isRegistrationComplete(draft)) { showMenuNotice("Заповніть ім'я, email і телефон."); return; }
+    if (password.length < 8) { showMenuNotice("Пароль має містити щонайменше 8 символів."); return; }
+    if (password !== document.getElementById("profilePassword2").value) { showMenuNotice("Паролі не збігаються."); return; }
+    const result = await cloud.register(draft, password);
     renderSettingsSection();
-    if (registration.firstAdmin) {
-      showMenuNotice("Профіль зареєстровано. Це перший користувач, тому він став адміністратором.");
-    } else if (registration.registered) {
-      showMenuNotice("Профіль зареєстровано і збережено локально.");
+    showMenuNotice(result.teacherRequested
+      ? "Реєстрацію завершено. Запит на права вчителя надіслано адміністратору."
+      : "Реєстрацію завершено. Ви увійшли в профіль.");
+  }));
+  document.getElementById("cloudLogin")?.addEventListener("click", () => cloudBusy(async () => {
+    const email = document.getElementById("profileEmail").value;
+    const password = document.getElementById("profilePassword").value;
+    if (!email || !password) { showMenuNotice("Введіть email і пароль."); return; }
+    await cloud.login(email, password);
+    renderSettingsSection();
+    showMenuNotice("Ви увійшли в профіль.");
+  }));
+  document.getElementById("cloudLogout")?.addEventListener("click", () => cloudBusy(async () => {
+    await cloud.logout();
+    openSubmenu("profile");
+    showMenuNotice("Ви вийшли з профілю.");
+  }));
+  document.getElementById("cloudReset")?.addEventListener("click", () => cloudBusy(async () => {
+    const email = document.getElementById("profileEmail").value;
+    if (!email) { showMenuNotice("Введіть email, на який надіслати лист."); return; }
+    await cloud.resetPassword(email);
+    showMenuNotice("Лист для відновлення пароля надіслано.");
+  }));
+
+  document.getElementById("saveProfile")?.addEventListener("click", () => cloudBusy(async () => {
+    const draft = readProfileFormDraft({ clearPlaceOnIdentityChange: !signedIn });
+    if (signedIn) {
+      await cloud.updateProfile(draft);
+      renderSettingsSection();
+      showMenuNotice("Профіль збережено.");
+      return;
+    }
+    const registration = saveProfile(draft);
+    renderSettingsSection();
+    if (registration.registered) {
+      showMenuNotice("Профіль збережено локально.");
     } else {
       showMenuNotice("Профіль збережено локально. Для реєстрації заповніть ім'я, email і телефон.");
     }
-  });
+  }));
 
   const chooseProfilePlaceAndSchool = () => {
     saveProfileDraftFromSettings({ clearPlaceOnIdentityChange: true });
@@ -2542,7 +2636,6 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
       <div><strong>${totalWrong}</strong><span>неправильних</span></div>
       <div><strong>${averageGrade}</strong><span>середня оцінка завершених тестів / 12</span></div>
     </div>
-    ${renderGroupStatsPanel()}
     ${window.renderDatedGroupExport("general")}
     ${sessions.length ? `
       <div class="stats-session-list">
@@ -2559,7 +2652,6 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
     button.addEventListener("click", () => renderStatsSection(button.dataset.statsSessionId));
   });
 
-  bindGroupStatsPanel();
   window.bindDatedGroupExport("general");
   const exportButton = document.getElementById("exportNmtStats");
   if (exportButton) {

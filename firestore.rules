@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'administrator';
+    }
+
+    match /users/{uid} {
+      // Читати: свій профіль або (адміністратор) усі
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Створити можна лише СВІЙ документ і лише з роллю «учень» без прав чату
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.role == 'registered'
+                    && request.resource.data.chatAccess == false;
+
+      // Оновити: користувач — свої дані, але НЕ роль і НЕ chatAccess; адміністратор — будь-кого
+      allow update: if signedIn() && (
+        isAdmin() ||
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.chatAccess == resource.data.chatAccess)
+      );
+
+      allow delete: if isAdmin();
+    }
+  }
+}
