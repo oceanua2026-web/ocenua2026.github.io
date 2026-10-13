@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 4,
+  "exportedAt": "2026-10-09T21:26:06.873Z",
+  "period": "2026-10-10",
+  "timeZone": "Europe/Kyiv",
+  "sessions": [
+    {
+      "id": "a",
+      "userKey": "u1",
+      "userName": "Оля",
+      "subjectId": "python_basics",
+      "subjectLabel": "Python",
+      "yearId": "python",
+      "total": 2,
+      "schoolName": "Школа",
+      "groupName": "9-А",
+      "answers": [
+        {
+          "isCorrect": true,
+          "answeredAt": "2026-10-09T21:30:00Z"
+        }
+      ],
+      "answeredCount": 2,
+      "correctCount": 1,
+      "wrongCount": 1,
+      "unansweredCount": 0,
+      "grade12": 6,
+      "scorePercent": 50,
+      "scoreVersion": 2
+    },
+    {
+      "id": "b",
+      "userKey": "u2",
+      "userName": "Іра",
+      "subjectId": "python_basics",
+      "yearId": "python",
+      "total": 1,
+      "schoolName": "Школа",
+      "groupName": "9-А",
+      "answers": [
+        {
+          "isCorrect": true,
+          "answeredAt": "2026-10-10T09:00:00Z"
+        }
+      ],
+      "answeredCount": 1,
+      "correctCount": 1,
+      "wrongCount": 0,
+      "unansweredCount": 0,
+      "grade12": 12,
+      "scorePercent": 100,
+      "scoreVersion": 2
+    }
+  ],
+  "lessonEvents": []
+}

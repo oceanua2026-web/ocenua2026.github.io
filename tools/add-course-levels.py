@@ -1,0 +1,20 @@
+from pathlib import Path
+p=Path('python-lessons.js');s=p.read_text(encoding='utf-8-sig')
+s=s.replace("  const storageKey=","  lessons.forEach(lesson=>lesson.level ||= 'beginner');\n  let courseLevel='beginner';\n  const levelLabels={beginner:'Початковий рівень',middle:'Середній рівень',high:'Високий рівень'};\n  const storageKey=")
+s=s.replace('    const doneCount=lessons.filter(completed).length;',"    const doneCount=lessons.filter(completed).length;\n    const visibleLessons=lessons.filter(l=>l.level===courseLevel),visibleDone=visibleLessons.filter(completed).length;")
+s=s.replace('<span class="lesson-eyebrow">PYTHON · З НУЛЯ</span>','<span class="lesson-eyebrow">PYTHON · ${levelLabels[courseLevel]}</span>')
+s=s.replace('12 коротких уроків: від першої команди до власної функції. Почніть із першого та рухайтеся у своєму темпі.','${visibleLessons.length} уроків вибраного рівня. Рухайтеся у своєму темпі.')
+s=s.replace('Завершено ${doneCount} із ${lessons.length} уроків</span><progress max="${lessons.length}" value="${doneCount}"','Завершено ${visibleDone} із ${visibleLessons.length} уроків</span><progress max="${visibleLessons.length}" value="${visibleDone}"')
+s=s.replace("    } else if(view==='home'){",'''    } else if(view==='home'){
+      panel.innerHTML=`<div class="python-lessons"><header class="lesson-heading"><span class="lesson-eyebrow">PYTHON · КУРС</span><h2>Оберіть рівень курсу</h2><p>Спочатку виберіть рівень — потім відкриється компактний список його уроків.</p></header><div class="lesson-catalog lesson-compact">${Object.entries(levelLabels).map(([level,label])=>btn('level',`${label} · ${lessons.filter(l=>l.level===level).length} уроків`,`data-course-level="${level}" class="lesson-row"`)).join('')}</div><div class="lesson-actions">${btn('flashcards','Флешкартки: три набори')}${btn('stats','Статистика')}</div></div>`;
+    } else if(view==='course'){''')
+s=s.replace('const recommended=lessons.find(l=>!completed(l));','const recommended=visibleLessons.find(l=>!completed(l));')
+s=s.replace('${heading}<nav class="lesson-actions"','${heading}<nav class="lesson-actions"')
+s=s.replace("${btn('stats','Статистика')}</nav>","${btn('levels','← Обрати рівень')}${btn('stats','Статистика')}</nav>")
+s=s.replace('<div class="lesson-catalog lesson-compact">${lessons.map','<div class="lesson-catalog lesson-compact">${visibleLessons.map')
+s=s.replace('20 запитань</span>','3 набори</span>')
+s=s.replace('nextLesson=lessons[lessons.indexOf(lesson)+1]','nextLesson=visibleLessons[visibleLessons.indexOf(lesson)+1]')
+s=s.replace("      if(action==='home'){window.renderPythonLessons();return;}","      if(action==='levels'){window.renderPythonLessons();return;}\n      if(action==='level'){courseLevel=el.dataset.courseLevel;window.renderPythonLessons('course');panel.scrollTop=0;return;}\n      if(action==='home'){window.renderPythonLessons('course');return;}")
+s=s.replace("if(action==='start'){activeId=el.dataset.lessonId;states[activeId] ||= fresh();}","if(action==='start'){activeId=el.dataset.lessonId;courseLevel=lessons.find(l=>l.id===activeId).level;states[activeId] ||= fresh();}")
+p.write_text(s,encoding='utf-8')
+p=Path('index.html');s=p.read_text(encoding='utf-8-sig').replace('  <script src="group-date-export.js','  <script src="data/python-levels.js"></script>\n  <script src="group-date-export.js');p.write_text(s,encoding='utf-8')

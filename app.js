@@ -73,7 +73,7 @@ const menuItems = [
   { id: "cities", label: "Місто", hint: "Області, райони, громади, населені пункти" },
   { id: "flashcards", label: "Флешкартки", hint: "Класи, предмети, підручники, тести" },
   { id: "stats", label: "Статистика", hint: "Результати навчання" },
-  { id: "python", label: "Python", hint: "Програмування і тести" },
+  { id: "python", label: "Інтерактивні уроки Python", hint: "Уроки крок за кроком і флешкартки" },
   { id: "schedule", label: "Розклад", hint: "Фото або файл розкладу" },
   { id: "chat", label: "Чат", hint: "Школа, район, громада" },
   { id: "tourism", label: "Туризм", hint: "Маршрути і туристичні об'єкти" },
@@ -920,7 +920,7 @@ function renderMenuContent(sectionId) {
 
   const renderers = {
     stats: renderStatsSection,
-    python: renderPythonSection,
+    python: () => window.renderPythonLessons(),
     schedule: () => renderStaticSection("Розклад", [
       "Сторінка для фото або файлу з розкладом уроків.",
       "Редагування розкладу буде прив'язане до користувачів з відповідним доступом."
@@ -940,7 +940,7 @@ function renderMenuContent(sectionId) {
     ]),
     about: () => renderStaticSection("Про програму", [
       "Авторське право © Бортнік О. В. & Бортнік В. М., 2026. Усі права захищено.",
-      "Версія 2026.10.04.164225. Оновлено 04.10.2026 о 16:42:25 (Europe/Kyiv)."
+      "Версія 2026.10.10.005127. Оновлено 10.10.2026 о 00:51:27 (Europe/Kyiv)."
     ]),
     profile: renderExitSection
   };
@@ -2073,7 +2073,7 @@ function renderPythonSection(
   menuContent.innerHTML = `
     <div class="nmt-workspace python-workspace">
       <div class="nmt-compact-head">
-        <strong>Python</strong>
+        <strong>Python</strong><button type="button" onclick="window.renderPythonLessons()">← Уроки Python</button><button type="button" onclick="window.renderPythonLessons('stats')">Статистика</button>
         ${subjects.length ? `
           <label class="nmt-subject-select">
             <span>Комплект</span>
@@ -2509,6 +2509,10 @@ function renderChatSection() {
   }
 }
 
+function isPythonStatsSession(session) {
+  return session.yearId === "python" || /^python(?:[_-]|$)/i.test(String(session.subjectId || ""));
+}
+
 function getUserNmtSessions() {
   const userKey = getStatsUserKey();
   return getNmtStats().sessions.filter((session) => session.userKey === userKey);
@@ -2516,7 +2520,7 @@ function getUserNmtSessions() {
 
 function renderStatsSection(sessionId = selectedStatsSessionId) {
   const profile = getProfile();
-  const sessions = getUserNmtSessions();
+  const sessions = getUserNmtSessions().filter(session => !isPythonStatsSession(session));
   const selectedSession = sessions.find((session) => session.id === sessionId) || sessions[0] || null;
   selectedStatsSessionId = selectedSession?.id || "";
   const completedCount = sessions.filter((session) => session.status === "completed").length;
@@ -2539,6 +2543,7 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
       <div><strong>${averageGrade}</strong><span>середня оцінка завершених тестів / 12</span></div>
     </div>
     ${renderGroupStatsPanel()}
+    ${window.renderDatedGroupExport("general")}
     ${sessions.length ? `
       <div class="stats-session-list">
         ${sessions.map((session) => renderStatsSessionRow(session)).join("")}
@@ -2555,6 +2560,7 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
   });
 
   bindGroupStatsPanel();
+  window.bindDatedGroupExport("general");
   const exportButton = document.getElementById("exportNmtStats");
   if (exportButton) {
     exportButton.addEventListener("click", exportNmtStatsFile);
@@ -2590,7 +2596,7 @@ function renderStatsSessionDetails(session) {
           <div class="stats-answer-row ${answer.isCorrect ? "is-correct" : "is-wrong"}">
             <span>№ ${escapeHtml(answer.number)}</span>
             <strong>${answer.isCorrect ? "правильно" : "неправильно"}</strong>
-            <small>${answer.source === "reveal" ? "перегляд відповіді" : `вибрано: ${escapeHtml(answer.selectedKey || "-")}`} · правильно: ${escapeHtml(answer.correctKey || "-")}</small>
+            <small>${answer.source === "reveal" ? "перегляд відповіді" : `вибрано: ${escapeHtml(answer.displaySelectedKey || answer.selectedKey || "-")}`} · правильно: ${escapeHtml(answer.displayCorrectKey || answer.correctKey || "-")}</small>
           </div>
         `).join("") : `<p class="empty-text">У цьому запуску ще немає відповідей.</p>`}
       </div>
@@ -2601,7 +2607,7 @@ function renderStatsSessionDetails(session) {
 let importedGroupSessions = [];
 
 function getGroupStatsSessions() {
-  const sessions = [...getNmtStats().sessions, ...importedGroupSessions];
+  const sessions = [...getNmtStats().sessions, ...importedGroupSessions].filter(session => !isPythonStatsSession(session));
   const unique = new Map();
   sessions.forEach(session => unique.set(`${session.userKey || ""}:${session.id}`, session));
   return [...unique.values()];
@@ -2673,7 +2679,7 @@ function exportNmtStatsFile() {
     schemaVersion: 3,
     userKey: getStatsUserKey(),
     profile: getProfile(),
-    sessions: getUserNmtSessions()
+    sessions: getUserNmtSessions().filter(session => !isPythonStatsSession(session))
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2876,13 +2882,18 @@ function recordNmtAnswer(card, selectedKey, source) {
     return session;
   }
 
-  const normalizedSelected = String(selectedKey || "");
+  const order = card.type === "single" ? session.optionOrders?.[card.number] : null;
+  const keys = (card.options || []).map(option => option.key);
+  const chosenIndex = keys.indexOf(String(selectedKey || ""));
+  const normalizedSelected = String(order && chosenIndex >= 0 ? order[chosenIndex] : (selectedKey || ""));
   const isCorrect = source !== "reveal" && areNmtAnswersEqual(normalizedSelected, card.correctKey || "", card.type || "single");
   session.answers.push({
     number: card.number,
     externalId: card.externalId || "",
     type: card.type || "single",
     selectedKey: normalizedSelected,
+    displaySelectedKey: String(selectedKey || ""),
+    displayCorrectKey: order ? (keys[order.indexOf(card.correctKey)] || card.correctKey) : card.correctKey,
     correctKey: card.correctKey || "",
     isCorrect,
     source,
@@ -3097,7 +3108,6 @@ function renderNmtVariant(variant, variantIndex = 0) {
     <section class="nmt-variant">
       ${cards.length ? `
         <div class="nmt-session-strip">
-          <strong>${escapeHtml(nmtData.years?.[selectedNmtYear]?.subjects?.[selectedNmtSubject]?.label || selectedNmtSubject)} · ${escapeHtml(variant.label || "Варіант")}${variant.session ? ` · ${escapeHtml(variant.session)}` : ""}</strong>
           <span>Старт: ${formatDateTime(session.startedAt)}</span>
           <span>${session.correctCount} правильних · ${session.wrongCount} неправильних · ${session.answeredCount}/${session.total} · ${escapeHtml(renderNmtGradeLabel(session))}</span>
           <button class="ghost-action" type="button" data-nmt-restart>Почати заново</button>
@@ -3118,7 +3128,33 @@ function renderNmtVariant(variant, variantIndex = 0) {
   `;
 }
 
+function getNmtCardPresentation(card, session) {
+  const response = getNmtSessionAnswer(session, card.number);
+  if (card.type !== "single" || card.options?.length !== 4 || !session) return { card, response };
+  const keys = card.options.map(option => option.key);
+  let order = session.optionOrders?.[card.number];
+  if (!Array.isArray(order) || order.length !== keys.length || new Set(order).size !== keys.length || !order.every(key => keys.includes(key))) {
+    if (response) return { card, response }; // Preserve earlier answered cards.
+    order = [...keys];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    session.optionOrders = { ...(session.optionOrders || {}), [card.number]: order };
+    const stats = getNmtStats();
+    const saved = findNmtSession(stats, session.id);
+    if (saved) { saved.optionOrders = session.optionOrders; saveNmtStats(stats); }
+  }
+  const displayKey = key => keys[order.indexOf(key)] || key;
+  return {
+    card: { ...card, options: order.map((key, i) => ({ ...card.options.find(option => option.key === key), key: keys[i] })), correctKey: displayKey(card.correctKey) },
+    response: response ? { ...response, selectedKey: displayKey(response.selectedKey), correctKey: displayKey(response.correctKey) } : null
+  };
+}
+
 function renderNmtCard(card, index, total, session) {
+  const presentation = getNmtCardPresentation(card, session);
+  card = presentation.card;
   const number = card.number || index + 1;
   const topic = card.topic || "Завдання НМТ";
   const isMatching = card.type === "matching";
@@ -3127,7 +3163,7 @@ function renderNmtCard(card, index, total, session) {
   const isMulti = card.type === "multi";
   const question = card.questionHtml || card.front || `Завдання ${number}`;
   const correctKey = card.correctKey || card.key || "";
-  const response = getNmtSessionAnswer(session, number);
+  const response = presentation.response;
   const typeLabel = isMatching
     ? "Встановлення відповідності"
     : isInput
@@ -3359,7 +3395,7 @@ function renderNmtCorrectPairs(pairs, fallback) {
 }
 
 function sanitizeNmtHtml(value) {
-  const allowed = ["p", "br", "b", "strong", "i", "em", "u", "sup", "sub", "ul", "ol", "li", "img"];
+  const allowed = ["pre", "code", "p", "br", "b", "strong", "i", "em", "u", "sup", "sub", "ul", "ol", "li", "img"];
   return String(value || "")
     .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
     .replace(/<img\b([^>]*)>/gi, (match, attrs) => {
@@ -3429,3 +3465,20 @@ if ("serviceWorker" in navigator) {
 updateProfileStatus();
 renderMenu("cities");
 openView(location.hash.replace(/^#/, "") || "ukraine", false);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

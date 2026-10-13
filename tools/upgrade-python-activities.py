@@ -1,0 +1,11 @@
+from pathlib import Path
+p=Path('python-lessons.js');s=p.read_text(encoding='utf-8-sig')
+s=s.replace("  const storageKey=", "  for(const lesson of lessons){const extra=window.OCEANUA_PYTHON_ACTIVITIES?.[lesson.id];if(extra){lesson.steps[0].walkthrough=extra.scene;lesson.steps.push(extra.task);}}\n  const storageKey=")
+s=s.replace("${done?'<div class=\"lesson-output\"><span>Результат зібраної програми</span><pre>Початок\\nКінець</pre></div>':''}","${done?`<div class=\"lesson-output\"><span>Результат зібраної програми</span><pre>${esc(s.assemblyOutput||'Початок\\nКінець')}</pre></div>`:''}")
+s=s.replace('Скарбничка: простежте монети',"${esc(walk.title||'Скарбничка: простежте монети')}")
+s=s.replace('state.walk===i+1?', '(frame.line===undefined?state.walk===i+1:frame.line===i)?')
+s=s.replace('`${key} = ${value}`',"`${key} = ${typeof value==='boolean'?(value?'True':'False'):value}`")
+s=s.replace('Правильно! Програма виведе Початок, а потім Кінець.','Правильно! Рядки складено в потрібному порядку. Подивіться на результат нижче.')
+s=s.replace('Поки що першим буде Кінець. Приберіть рядки натисканням і змініть їхній порядок.','Порядок ще не відповідає завданню. Перевірте підготовку значень і відступи. Приберіть рядки натисканням і змініть порядок.')
+p.write_text(s,encoding='utf-8')
+p=Path('index.html');s=p.read_text(encoding='utf-8-sig');s=s.replace('  <script src="python-lessons.js','  <script src="data/python-activities.js"></script>\n  <script src="python-lessons.js');p.write_text(s,encoding='utf-8')

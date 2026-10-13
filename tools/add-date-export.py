@@ -1,0 +1,11 @@
+from pathlib import Path
+p=Path('python-lessons.js');s=p.read_text(encoding='utf-8-sig')
+s=s.replace('<p>Інтерактивні уроки та флешкартки Python.</p></header><section','<p>Інтерактивні уроки та флешкартки Python.</p></header>${window.renderDatedGroupExport("python")}<section')
+s=s.replace("    panel.scrollTop=view==='home'?0:oldScroll;","    if(view==='stats')window.bindDatedGroupExport('python');\n    panel.scrollTop=view==='home'?0:oldScroll;")
+s=s.replace("if(action==='hint'&&!state.hints.includes(state.step))state.hints.push(state.step);","if(action==='hint'&&!state.hints.includes(state.step)){state.hints.push(state.step);window.recordPythonLessonEvent(activeId,state.step,'hint');}")
+s=s.replace("if(ok){state.answers", "if(ok){window.recordPythonLessonEvent(activeId,state.step,'correct',!state.assemblyAttempted&&!state.hints.includes(state.step));state.answers")
+s=s.replace("else{state.mistakes++;state.assemblyAttempted", "else{window.recordPythonLessonEvent(activeId,state.step,'wrong');state.mistakes++;state.assemblyAttempted")
+s=s.replace("      if(index===step.correct)state.answers", "      window.recordPythonLessonEvent(activeId,state.step,index===step.correct?'correct':'wrong',!hadWrong&&!state.hints.includes(state.step));\n      if(index===step.correct)state.answers")
+p.write_text(s,encoding='utf-8')
+p=Path('app.js');s=p.read_text(encoding='utf-8-sig').replace('${renderGroupStatsPanel()}','${renderGroupStatsPanel()}\n    ${window.renderDatedGroupExport("general")}').replace('  bindGroupStatsPanel();','  bindGroupStatsPanel();\n  window.bindDatedGroupExport("general");');p.write_text(s,encoding='utf-8')
+p=Path('index.html');s=p.read_text(encoding='utf-8-sig').replace('  <script src="python-lessons.js','  <script src="group-date-export.js"></script>\n  <script src="python-lessons.js');p.write_text(s,encoding='utf-8')

@@ -1,0 +1,3 @@
+from pathlib import Path
+p=Path('python-lessons.js');s=p.read_text(encoding='utf-8-sig').replace("(value?'True':'False'):value}","(value?'True':'False'):typeof value==='string'&&!value.startsWith('[')?JSON.stringify(value):value}");p.write_text(s,encoding='utf-8')
+p=Path('data/python-activities.js');s=p.read_text(encoding='utf-8-sig').replace("window.OCEANUA_PYTHON_ACTIVITIES=Object.fromEntries", "for(const config of configs){if(config[0]==='final-practice')config[3].forEach(event=>{event[1]={numbers:'[2, 5, 7]',...event[1]};});}\n window.OCEANUA_PYTHON_ACTIVITIES=Object.fromEntries");p.write_text(s,encoding='utf-8')
