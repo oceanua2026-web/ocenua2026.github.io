@@ -629,11 +629,122 @@ window.OCEANUA_GRADE_FLASHCARDS = {
     "10": {
       "dataFile": "data/flashcards/grade-10.js?v=20261004084121",
       "label": "10 клас",
-      "description": "Нові комплекти ще не додані.",
+      "description": "Тести до підручників 10 класу з наборами за параграфами й темами.",
       "sourceYears": [
         "10 клас"
       ],
-      "subjects": [],
+      "subjects":         [
+          {
+            "id": "algebra_merzliak_10_2018",
+            "label": "Алгебра і початки аналізу — Мерзляк, Номіровський, Полонський, Якір, 2018",
+            "dataFile": "data/flashcards/grade-10/algebra-merzliak-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "informatics_rivkind_10_11_2018",
+            "label": "Інформатика (10–11 класи) — Ривкінд, Лисенко, Чернікова, Шакотько, 2018",
+            "dataFile": "data/flashcards/grade-10/informatics-rivkind-2018.js?v=20261102-2212"
+          },
+          {
+            "id": "ukraine_history_hisem_10_2018",
+            "label": "Історія України — Гісем, Мартинюк, 2018",
+            "dataFile": "data/flashcards/grade-10/ukraine-history-hisem-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "english_karpiuk_10_2018",
+            "label": "Англійська мова — Карп’юк, 2018",
+            "dataFile": "data/flashcards/grade-10/english-karpiuk-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "biology_zadorozhny_10_2018",
+            "label": "Біологія і екологія — Задорожний, 2018",
+            "dataFile": "data/flashcards/grade-10/biology-zadorozhny-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "world_history_shchupak_10_2018",
+            "label": "Всесвітня історія — Щупак, 2018",
+            "dataFile": "data/flashcards/grade-10/world-history-shchupak-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "geography_boiko_10_2018",
+            "label": "Географія — Бойко, Брайчевський, Яценко, 2018",
+            "dataFile": "data/flashcards/grade-10/geography-boiko-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "geometry_merzlyak_profile_10_2018",
+            "label": "Геометрія (профільний рівень) — Мерзляк, Номіровський, Полонський, Якір, 2018",
+            "dataFile": "data/flashcards/grade-10/geometry-merzlyak-profile-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "civics_hisem_10_2018",
+            "label": "Громадянська освіта — Гісем, Мартинюк, 2018",
+            "dataFile": "data/flashcards/grade-10/civics-hisem-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "foreign_literature_parashchych_10_2018",
+            "label": "Зарубіжна література — Паращич, Фефілова, Коновалова, 2018",
+            "dataFile": "data/flashcards/grade-10/foreign-literature-parashchych-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "mathematics_merzlyak_standard_10_2018",
+            "label": "Математика (стандартний рівень) — Мерзляк, Номіровський, Полонський, Якір, 2018",
+            "dataFile": "data/flashcards/grade-10/mathematics-merzlyak-standard-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "art_haidamaka_10_11_2019",
+            "label": "Мистецтво (10–11 класи) — Гайдамака, 2019",
+            "dataFile": "data/flashcards/grade-10/art-haidamaka-2019.js?v=20261102-1932"
+          },
+          {
+            "id": "ukrainian_literature_avramenko_10_2018",
+            "label": "Українська література — Авраменко, Пахаренко, 2018",
+            "dataFile": "data/flashcards/grade-10/ukrainian-literature-avramenko-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "ukrainian_language_avramenko_10_2018",
+            "label": "Українська мова — Авраменко, 2018",
+            "dataFile": "data/flashcards/grade-10/ukrainian-language-avramenko-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "physics_baryakhtar_10_2018",
+            "label": "Фізика — Бар’яхтар, Довгий, Божинова, Кірюхіна, 2018",
+            "dataFile": "data/flashcards/grade-10/physics-baryakhtar-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "chemistry_hryhorovych_10_2018",
+            "label": "Хімія — Григорович, 2018",
+            "dataFile": "data/flashcards/grade-10/chemistry-hryhorovych-2018.js?v=20261102-1932"
+          },
+          {
+            "id": "biology_sobol_10_2018",
+            "label": "Біологія і екологія — Соболь, 2018",
+            "dataFile": "data/flashcards/grade-10/biology-sobol-2018.js?v=20261102-1950"
+          },
+          {
+            "id": "world_history_hisem_10_2018",
+            "label": "Всесвітня історія — Гісем, Мартинюк, 2018",
+            "dataFile": "data/flashcards/grade-10/world-history-hisem-2018.js?v=20261102-1950"
+          },
+          {
+            "id": "geography_boiko_10_2024",
+            "label": "Географія: регіони і країни — Бойко, Брайчевський, Яценко, 2024",
+            "dataFile": "data/flashcards/grade-10/geography-boiko-2024.js?v=20261102-1950"
+          },
+          {
+            "id": "foreign_literature_milianovska_10_2018",
+            "label": "Зарубіжна література — Міляновська, 2018",
+            "dataFile": "data/flashcards/grade-10/foreign-literature-milianovska-2018.js?v=20261102-1950"
+          },
+          {
+            "id": "ukrainian_language_zabolotny_10_2018",
+            "label": "Українська мова — Заболотний, 2018",
+            "dataFile": "data/flashcards/grade-10/ukrainian-language-zabolotny-2018.js?v=20261102-1950"
+          },
+          {
+            "id": "chemistry_popel_10_2018",
+            "label": "Хімія — Попель, Крикля, 2018",
+            "dataFile": "data/flashcards/grade-10/chemistry-popel-2018.js?v=20261102-1950"
+          }
+        ],
       "pendingSubjects": []
     },
     "11": {

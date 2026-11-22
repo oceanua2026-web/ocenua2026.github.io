@@ -4,76 +4,64 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#06192d">
-    <title>ОкеанUA - освітня програма</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=20261010-004247">
+    <title>ОкеанUA — навчально-освітня платформа (PWA)</title>
+    <link rel="manifest" href="manifest.webmanifest?v=20261110-1124">
+    <link rel="stylesheet" href="styles.css?v=20261121-001345">
   </head>
   <body>
-    <main class="map-app" aria-label="ОкеанUA">
-      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Відкрити меню" aria-expanded="false" aria-controls="mainMenu">
-        <span class="hamburger-lines" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </span>
-        <span class="map-brand-mark" aria-hidden="true">
+    <main class="oceanua-app is-home" aria-label="ОкеанUA">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-label="Повернутися на головний екран">
+        <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 64 64" focusable="false">
             <defs>
-              <linearGradient id="mapBrandWaveA" x1="12" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+              <linearGradient id="brandWaveA" x1="12" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
                 <stop offset="0" stop-color="#8cecff" />
                 <stop offset=".48" stop-color="#1599ff" />
                 <stop offset="1" stop-color="#0b3cbb" />
               </linearGradient>
-              <linearGradient id="mapBrandWaveB" x1="16" y1="10" x2="50" y2="48" gradientUnits="userSpaceOnUse">
+              <linearGradient id="brandWaveB" x1="16" y1="10" x2="50" y2="48" gradientUnits="userSpaceOnUse">
                 <stop offset="0" stop-color="#ffffff" />
                 <stop offset="1" stop-color="#6fe2ff" />
               </linearGradient>
             </defs>
             <circle cx="32" cy="32" r="29" fill="#062a64" />
-            <path d="M55 35c-3 13-15 22-29 19C12 51 4 37 9 24c5-14 20-22 35-15-13-1-25 7-28 18-2 9 4 18 14 20 8 1 16-3 20-10-8 5-19 2-22-6 9 7 20 1 27 4Z" fill="url(#mapBrandWaveA)" />
-            <path d="M17 25c6-12 20-17 33-10-12 0-22 5-28 15-2-2-4-3-5-5Z" fill="url(#mapBrandWaveB)" opacity=".88" />
+            <path d="M55 35c-3 13-15 22-29 19C12 51 4 37 9 24c5-14 20-22 35-15-13-1-25 7-28 18-2 9 4 18 14 20 8 1 16-3 20-10-8 5-19 2-22-6 9 7 20 1 27 4Z" fill="url(#brandWaveA)" />
+            <path d="M17 25c6-12 20-17 33-10-12 0-22 5-28 15-2-2-4-3-5-5Z" fill="url(#brandWaveB)" opacity=".88" />
             <path d="M26 43c7 2 16-1 21-8-2 10-12 17-23 15-8-2-14-8-15-16 4 5 10 8 17 9Z" fill="#16d6ff" opacity=".72" />
           </svg>
         </span>
-        <span class="map-brand-copy">
-          <strong class="map-brand-name">Океан<span>UA</span></strong>
+        <span class="brand-copy">
+          <strong class="brand-name">Океан<span>UA</span></strong>
           <small>Освіта об'єднує нас</small>
         </span>
       </button>
+
+      <div class="language-switch" role="group" aria-label="Мова інтерфейсу">
+        <button type="button" data-language="uk" aria-pressed="true" aria-label="Українська мова">UA</button>
+        <button type="button" data-language="en" aria-pressed="false" aria-label="English language">EN</button>
+      </div>
 
       <button class="profile-entry" id="profileEntry" type="button" aria-label="Профіль або реєстрація">
         <span id="profileEntryText">Гість</span>
       </button>
 
-      <section class="map-view" aria-label="Інтерактивна карта України">
-        <div class="map-background" id="mapBackground" aria-hidden="true"></div>
+      <button class="section-back" id="sectionBack" type="button" aria-label="Повернутися до головного меню" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M19 12H5m0 0 7-7m-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
 
-        <div class="map-controls" id="mapControls" hidden>
-          <button class="control-button" id="backButton" type="button">Назад</button>
-          <button class="control-button" id="homeButton" type="button">Україна</button>
-          <span class="view-title" id="viewTitle"></span>
+      <section class="home-hero" aria-label="Заставка платформи ОкеанUA">
+        <img class="home-hero-image" src="assets/oceanua-learning-hero.png?v=20261110-1124" alt="Студентка навчається з планшетом біля моря" fetchpriority="high">
+        <div class="home-hero-shade" aria-hidden="true"></div>
+        <div class="home-hero-copy">
+          <h1 id="homeHeroTitle">Навчально-освітня платформа <span>(PWA)</span></h1>
+          <p class="home-hero-lead">Флеш-картки для самостійного навчання й перевірки знань.</p>
+          <p class="home-hero-details">Офлайн-доступ, інтерактивні лекції та STEAM-модулі.</p>
         </div>
-
-        <figure class="map-canvas" id="mapCanvas">
-          <img id="mapImage" src="assets/maps/ukraine.png" alt="Карта України">
-          <div class="hotspots-layer" id="hotspotsLayer"></div>
-        </figure>
-
-        <aside class="map-message" id="mapMessage" aria-live="polite" hidden></aside>
-        <aside class="map-school-list" id="mapSchoolList" aria-label="Список шкіл на карті" hidden></aside>
       </section>
 
-      <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
-
-      <aside class="main-menu" id="mainMenu" aria-hidden="true">
-        <header class="menu-header">
-          <div class="menu-panel-title">
-            <strong>Меню</strong>
-            <span id="profileStatus">Гість. Статистика зберігається на цьому пристрої.</span>
-          </div>
-          <button class="close-menu" id="closeMenu" type="button" aria-label="Закрити меню">×</button>
-        </header>
-
+      <aside class="main-menu is-open" id="mainMenu" aria-hidden="false">
         <nav class="menu-list" id="menuList" aria-label="Основне меню"></nav>
       </aside>
 
@@ -85,35 +73,14 @@
     <!-- ВАЖЛИВО (README.md розділ 2): після зміни будь-якого data/*.js
          файлу треба ОБОВ'ЯЗКОВО бампнути ?v=YYYYMMDD-HHMM для нього нижче,
          інакше браузер може віддати закешовану стару версію. -->
-    <script src="data/grade-flashcards.js?v=20261004084121"></script>
-  <script src="data/python-flashcards.js?v=20261010-005127"></script>
-  <script src="data/odesa-berezivskyi-maps.js?v=20260610-3"></script>
-  <script src="data/city-education.js?v=20261004160337"></script>
-  <script src="data/python-lessons.js?v=20261010-003324"></script>
-  <script src="data/python-activities.js?v=20261010-001950"></script>
-  <script src="data/python-levels.js?v=20261010-005127"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-config.js?v=20261013-160327"></script>
-  <script src="firebase-auth.js?v=20261013-163422"></script>
-  <script src="group-date-export.js?v=20261013-160327"></script>
-  <script src="python-lessons.js?v=20261010-003324"></script>
-  <script src="app.js?v=20261013-163422"></script>
+    <script src="data/grade-flashcards.js?v=20261102-2212"></script>
+    <script src="data/python-flashcards.js?v=20261102-1706"></script>
+    <script src="data/city-education.js?v=20261110-1124"></script>
+    <script src="data/python-lessons.js?v=20261102-1706"></script>
+    <script src="data/python-activities.js?v=20261102-1706"></script>
+    <script src="data/python-levels.js?v=20261102-1706"></script>
+    <script src="python-lessons.js?v=20261110-2120"></script>
+    <script src="locales.js?v=20261120-2242"></script>
+    <script src="app.js?v=20261121-001345"></script>
   </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

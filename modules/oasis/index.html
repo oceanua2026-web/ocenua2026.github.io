@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f5ef">
+  <title>STEM · Екосистема Оазис</title>
+  <style>html,body{margin:0;min-height:100%;}</style>
+</head>
+<body>
+<div id="oasis-simulation" lang="uk">
+  <style>
+    #oasis-simulation {
+      color-scheme: light;
+      --ink: light-dark(#23342b, #e6eee7);
+      --muted: light-dark(#66746b, #a5b1a7);
+      --line: light-dark(#d9e1d8, #344039);
+      --surface: light-dark(#ffffff, #202922);
+      --canvas: light-dark(#f4f5ef, #171e19);
+      --soft: light-dark(#edf2eb, #29362d);
+      --green: light-dark(#356c4c, #8bc29a);
+      --green-deep: light-dark(#234c37, #b4d9bb);
+      --green-soft: light-dark(#e4efe5, #304738);
+      --water: light-dark(#3b8ca0, #68bac7);
+      --amber: light-dark(#a66a20, #e5b86d);
+      --red: light-dark(#a54c3b, #e79b82);
+      width: 100%;
+      color: var(--ink);
+      font: 400 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #oasis-simulation * { box-sizing: border-box; }
+    #oasis-simulation .screen { overflow: hidden; background: var(--canvas); border: 1px solid var(--line); border-radius: 16px; }
+    #oasis-simulation .masthead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+    #oasis-simulation .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    #oasis-simulation .brand-mark { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; background: linear-gradient(145deg, #4b8b62, #23634a); color: #f7fbf6; font-size: 18px; }
+    #oasis-simulation .brand-title { font-weight: 500; font-size: 13px; }
+    #oasis-simulation .brand-sub { color: var(--muted); font-size: 10px; }
+    #oasis-simulation .scenario-tag { color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 5px 9px; font-size: 10px; white-space: nowrap; }
+    #oasis-simulation .scene-wrap { position: relative; }
+    #oasis-simulation .scene { width: 100%; display: block; height: auto; aspect-ratio: 1670 / 945; object-fit: cover; background: var(--soft); }
+    #oasis-simulation .scene-variant { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; pointer-events: none; transition: opacity .9s cubic-bezier(.2,.7,.2,1); }
+    #oasis-simulation .scene-wrap.scene-transition-from .scene-variant-from { opacity: 1; }
+    #oasis-simulation .scene-wrap.scene-transition-to .scene-variant-from { opacity: 0; }
+    #oasis-simulation .scene-wrap.scene-transition-to .scene-variant-to { opacity: 1; }
+    #oasis-simulation .scene-dry-river-overlay { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; clip-path: inset(62% 0 0); opacity: 0; pointer-events: none; transition: opacity .65s ease; }
+    #oasis-simulation .scene-wrap.has-dry-river-overlay .scene-dry-river-overlay { opacity: 1; }
+    #oasis-simulation .scene-orchard-overlay { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; clip-path: inset(19% 0 51% 23%); opacity: 0; pointer-events: none; transition: opacity .65s ease; }
+    #oasis-simulation .scene-wrap.has-orchard-drought-overlay .scene-orchard-overlay { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { #oasis-simulation .scene-variant { transition: none; } }
+    #oasis-simulation .ecosystem-warning { position: absolute; inset: 0; z-index: 2; overflow: hidden; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .65s ease, visibility 0s linear .65s; }
+    #oasis-simulation .ecosystem-warning.is-visible { opacity: 1; visibility: visible; transition: opacity .65s ease; }
+    #oasis-simulation .ecosystem-warning-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+    #oasis-simulation .ecosystem-warning-image--en { display: none; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning { background: transparent; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning-image--uk { display: none; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning-image--en { display: block; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning::before,
+    #oasis-simulation[data-language="en"] .ecosystem-warning::after { position: absolute; z-index: 3; left: 3%; width: 52%; white-space: pre-line; font-size: clamp(22px, 4.1vw, 62px); font-style: italic; font-weight: 1000; letter-spacing: -.04em; line-height: .98; text-shadow: 3px 4px 0 #080603, -2px -2px 0 #080603, 2px -2px 0 #080603, -2px 2px 0 #080603, 0 8px 20px #000; text-transform: uppercase; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning::before { content: "You broke the\A ecosystem."; top: 9%; color: #ffe000; }
+    #oasis-simulation[data-language="en"] .ecosystem-warning::after { content: "Greta is coming\A for you!"; top: 40%; color: #ff2925; }
+    #oasis-simulation .scene-actions { position: absolute; left: 14px; bottom: 14px; z-index: 3; display: flex; align-items: center; gap: 6px; }
+    #oasis-simulation .scene-test-button { min-height: 44px; padding: 9px 20px; border: 1px solid rgba(255,255,255,.85); border-radius: 9px; background: rgba(35,76,55,.95); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.24); font: inherit; font-size: 13px; font-weight: 600; }
+    #oasis-simulation .scene-help-button { min-width: 44px; height: 44px; padding: 0 14px; border: 1px solid rgba(255,255,255,.85); border-radius: 9px; background: rgba(35,76,55,.95); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.24); font: inherit; font-size: 13px; font-weight: 600; }
+    #oasis-simulation .scene-test-button:disabled { opacity: .65; }
+    #oasis-simulation .below-scene { padding: 15px 16px 20px; }
+    #oasis-simulation .timeline-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 2px 9px; }
+    #oasis-simulation h2 { margin: 0; font-size: 14px; font-weight: 500; }
+    #oasis-simulation .timeline-status { color: var(--muted); font-size: 11px; }
+    #oasis-simulation .month-strip { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+    #oasis-simulation .month {
+      min-width: 0; min-height: 58px; display: flex; flex-direction: column; justify-content: center; gap: 3px;
+      padding: 5px 3px; text-align: center; border-radius: 8px; background: var(--surface); border: 1px solid var(--line);
+      transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+    }
+    #oasis-simulation .month-label { font-size: 9px; color: var(--muted); white-space: nowrap; }
+    #oasis-simulation .month-inflow { color: var(--muted); font-size: 8px; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #oasis-simulation .month-carryover { color: var(--green-deep); font-size: 7px; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: normal; }
+    #oasis-simulation .month-count { font-size: 10px; font-weight: 500; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #oasis-simulation .month-unit { color: var(--muted); font-size: 8px; }
+    #oasis-simulation .month.current { background: var(--green-soft); border-color: var(--green); color: var(--green-deep); }
+    #oasis-simulation .month.current .month-label, #oasis-simulation .month.current .month-unit { color: var(--green); }
+    #oasis-simulation .month.complete { border-color: light-dark(#b9d1bd, #43634b); }
+    #oasis-simulation .month.dry .month-count { color: var(--red); }
+    #oasis-simulation .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 20px 2px 10px; }
+    #oasis-simulation .section-title small { color: var(--muted); font-size: 10px; }
+    #oasis-simulation .settings { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    #oasis-simulation .setting-group { min-width: 0; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; }
+    #oasis-simulation .group-title { margin: 0 0 10px; font-size: 12px; font-weight: 500; }
+    #oasis-simulation .field { min-width: 0; margin-top: 9px; }
+    #oasis-simulation .field:first-of-type { margin-top: 0; }
+    #oasis-simulation .label-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    #oasis-simulation .field-label { color: var(--muted); font-size: 10px; }
+    #oasis-simulation .field-value { font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #oasis-simulation select, #oasis-simulation input[type="number"] {
+      width: 100%; min-height: 34px; padding: 6px 8px; color: var(--ink); background: var(--surface);
+      border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 12px;
+    }
+    #oasis-simulation input[type="range"] { display: block; width: 100%; margin: 6px 0 1px; accent-color: var(--green); }
+    #oasis-simulation .limits { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+    #oasis-simulation .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #oasis-simulation .mode-select { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 10px; background: var(--soft); border-radius: 8px; }
+    #oasis-simulation .mode-button { min-height: 30px; padding: 5px 4px; border: 1px solid transparent; border-radius: 6px; color: var(--muted); background: transparent; font: inherit; font-size: 9px; }
+    #oasis-simulation .mode-button[aria-pressed="true"] { color: var(--green-deep); background: var(--surface); border-color: var(--line); }
+    #oasis-simulation .helper { margin: 5px 0 0; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    #oasis-simulation .start-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+    #oasis-simulation .run-button { min-height: 40px; padding: 9px 19px; border: 0; border-radius: 8px; background: #316f4d; color: #fff; font: inherit; font-size: 12px; font-weight: 500; }
+    #oasis-simulation .run-button:disabled { opacity: .7; }
+    #oasis-simulation .run-note { color: var(--muted); font-size: 10px; }
+    #oasis-simulation .progress-track { height: 3px; margin-top: 10px; background: var(--soft); border-radius: 99px; overflow: hidden; }
+    #oasis-simulation .progress-fill { height: 100%; width: 0%; background: var(--water); transition: width .2s ease; }
+    #oasis-simulation .profile-disclosure { margin-top: 10px; color: var(--muted); font-size: 10px; }
+    #oasis-simulation .profile-table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 9px; }
+    #oasis-simulation .profile-table td, #oasis-simulation .profile-table th { padding: 5px 4px; text-align: right; border-bottom: 1px solid var(--line); }
+    #oasis-simulation .profile-table th:first-child, #oasis-simulation .profile-table td:first-child { text-align: left; }
+    #oasis-simulation .credit-heading { margin: 12px 0 5px; color: var(--ink); font-size: 12px; font-weight: 500; }
+    #oasis-simulation .credit-note { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+    #oasis-simulation .credit-guide > .credit-note { padding: 7px 9px; border-radius: 8px; color: #111; background: #fff; font-size: 14px; line-height: 1.5; }
+    #oasis-simulation #credit-score-table .economic-penalty td { color: #9b3b34; background: #fbf0ee; }
+    #oasis-simulation #credit-score-table .final-score td { color: #225a3b; background: #edf6ef; font-weight: 600; }
+    #oasis-simulation .results { margin-top: 18px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+    #oasis-simulation .results[hidden] { display: none; }
+    #oasis-simulation .result-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    #oasis-simulation .result-heading h2 { font-size: 15px; }
+    #oasis-simulation .result-sub { color: var(--muted); font-size: 10px; margin-top: 3px; }
+    #oasis-simulation .compare-wrap { overflow-x: auto; margin-top: 10px; }
+    #oasis-simulation .compare { width: 100%; border-collapse: collapse; min-width: 500px; font-size: 10px; }
+    #oasis-simulation .compare th, #oasis-simulation .compare td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    #oasis-simulation .compare th:first-child, #oasis-simulation .compare td:first-child { text-align: left; }
+    #oasis-simulation .compare th { color: var(--muted); font-weight: 400; }
+    #oasis-simulation .month-report { width: 100%; min-width: 720px; margin-top: 12px; border-collapse: collapse; font-size: 10px; }
+    #oasis-simulation .month-report th, #oasis-simulation .month-report td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+    #oasis-simulation .month-report th:first-child, #oasis-simulation .month-report td:first-child { text-align: left; }
+    #oasis-simulation .month-report th { color: var(--muted); font-weight: 400; }
+    @media (max-width: 820px) {
+      #oasis-simulation .month-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      #oasis-simulation .settings { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      #oasis-simulation .masthead { padding: 8px 10px; }
+      #oasis-simulation .scenario-tag { display: block; max-width: 150px; overflow: hidden; padding: 4px 6px; text-overflow: ellipsis; }
+      #oasis-simulation .below-scene { padding: 12px 9px 16px; }
+      #oasis-simulation .settings { grid-template-columns: 1fr; }
+      #oasis-simulation .month-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      #oasis-simulation .timeline-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+      #oasis-simulation .start-row { align-items: stretch; flex-direction: column; }
+      #oasis-simulation .run-button { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #oasis-simulation .month, #oasis-simulation .progress-fill { transition: none; }
+    }
+    #oasis-simulation .below-scene { padding: 10px 12px 16px; }
+    #oasis-simulation .compact-timeline { margin-bottom: 9px; }
+    #oasis-simulation .timeline-head { margin: 0 2px 6px; }
+    #oasis-simulation .timeline-head h2 { font-size: 12px; }
+    #oasis-simulation .month-strip { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+    #oasis-simulation .month { min-height: 54px; padding: 4px 2px; gap: 2px; }
+    #oasis-simulation .month-label { font-size: 9px; }
+    #oasis-simulation .month-inflow { font-size: 7px; white-space: nowrap; }
+    #oasis-simulation .month-trees { display: flex; align-items: baseline; justify-content: space-between; gap: 3px; font-size: 7px; color: var(--muted); white-space: nowrap; }
+    #oasis-simulation .month-count { color: var(--ink); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    #oasis-simulation .timeline-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; gap: 6px; margin-top: 6px; }
+    #oasis-simulation .month-action { min-width: 0; display: grid; grid-template-columns: minmax(130px, .8fr) minmax(0, 1.4fr); align-items: stretch; gap: 6px; }
+    #oasis-simulation .month-action .run-button { width: 100%; min-height: 58px; padding: 6px 8px; font-size: 10px; }
+    #oasis-simulation .prepare-status { display: flex; align-items: center; min-width: 0; padding: 7px 9px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; font-size: 9px; line-height: 1.35; }
+    #oasis-simulation .quick-results { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+    #oasis-simulation .quick-card { min-width: 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 5px 6px; border: 0; border-radius: 9px; text-align: center; }
+    #oasis-simulation .quick-card-trees { background: light-dark(#347a4d, #347a4d); }
+    #oasis-simulation .quick-card-score { background: light-dark(#2d6d8c, #2d6d8c); }
+    #oasis-simulation .quick-card-label { color: #fff; font-size: 9px; line-height: 1.1; white-space: nowrap; }
+    #oasis-simulation .quick-card strong { color: #fff; font-size: clamp(24px, 2.6vw, 32px); line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+    #oasis-simulation .garden-row { display: grid; grid-template-columns: auto minmax(190px, 1.15fr) minmax(250px, 1.5fr) minmax(190px, 1fr); align-items: center; gap: 9px; margin: 9px 0; padding: 8px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    #oasis-simulation .preparation-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) auto minmax(180px, 1.4fr); align-items: center; gap: 9px; margin: 8px 0; padding: 8px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    #oasis-simulation .preparation-label { display: grid; gap: 3px; color: var(--muted); font-size: 9px; }
+    #oasis-simulation .preparation-label select { min-height: 30px; }
+    #oasis-simulation .preparation-title { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 10px; font-weight: 500; }
+    #oasis-simulation .prepare-button { min-height: 32px; padding: 6px 12px; border: 1px solid var(--green); border-radius: 7px; background: var(--green-soft); color: var(--green-deep); font: inherit; font-size: 10px; }
+    #oasis-simulation .prepare-button:disabled { opacity: .6; }
+    #oasis-simulation .prepare-status { color: var(--muted); font-size: 9px; line-height: 1.35; }
+    #oasis-simulation .garden-title { font-size: 12px; font-weight: 500; white-space: nowrap; }
+    #oasis-simulation .crop-picker { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--muted); font-size: 10px; }
+    #oasis-simulation .crop-picker select { min-width: 0; min-height: 30px; }
+    #oasis-simulation .crop-facts { display: flex; flex-wrap: wrap; gap: 3px 12px; color: var(--muted); font-size: 10px; }
+    #oasis-simulation .crop-facts strong { color: var(--ink); font-weight: 500; }
+    #oasis-simulation .tree-entry { display: grid; grid-template-columns: minmax(0, 1fr) 105px; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
+    #oasis-simulation .tree-entry input { min-height: 30px; text-align: right; }
+    #oasis-simulation .compact-controls { display: grid; gap: 7px; }
+    #oasis-simulation .control-row { min-width: 0; padding: 7px 9px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    #oasis-simulation .control-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+    #oasis-simulation .control-row-title { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    #oasis-simulation .range-cards, #oasis-simulation .energy-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    #oasis-simulation .range-card { min-width: 0; }
+    #oasis-simulation .range-card .label-line { margin: 0; }
+    #oasis-simulation .range-card .field-label { font-size: 9px; }
+    #oasis-simulation .range-card .field-value { font-size: 10px; }
+    #oasis-simulation .range-card input[type="range"] { margin: 2px 0 0; }
+    #oasis-simulation .range-card > .limits { display: none; }
+    #oasis-simulation .range-slider-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+    #oasis-simulation .range-slider-row .hint-panel, #oasis-simulation .release-control .hint-panel { left: auto; right: 0; }
+    #oasis-simulation .release-control { display: grid; grid-template-columns: minmax(0, 1fr) 94px auto; align-items: center; gap: 7px; }
+    #oasis-simulation .release-exact-label { display: grid; gap: 2px; color: var(--muted); font-size: 8px; }
+    #oasis-simulation .release-exact { width: 100%; min-height: 27px !important; padding: 3px 5px !important; text-align: right; font-size: 10px !important; font-variant-numeric: tabular-nums; }
+    #oasis-simulation .credit-inline { color: var(--green-deep); font-weight: 600; font-variant-numeric: tabular-nums; }
+    #oasis-simulation .live-credit-summary { margin: 7px 0 0; padding: 7px 9px; color: var(--green-deep); background: var(--green-soft); border-radius: 8px; font-size: 10px; font-variant-numeric: tabular-nums; }
+    #oasis-simulation .formula-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; margin-top: 8px; }
+    #oasis-simulation .formula-item { min-width: 0; line-height: 1.45; }
+    #oasis-simulation .formula-item strong { color: var(--ink); font-weight: 600; }
+    #oasis-simulation .formula { display: block; margin: 2px 0; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; overflow-wrap: anywhere; }
+    #oasis-simulation .calculation-steps { display: grid; gap: 8px; margin: 8px 0 0; padding-left: 20px; }
+    #oasis-simulation .calculation-steps li { padding-left: 3px; line-height: 1.45; }
+    @media (max-width: 560px) { #oasis-simulation .formula-grid { grid-template-columns: 1fr; } }
+    #oasis-simulation .range-card .limits { font-size: 8px; }
+    #oasis-simulation .mode-select { display: flex; gap: 2px; padding: 2px; margin: 0; }
+    #oasis-simulation .mode-button { min-height: 24px; padding: 2px 7px; font-size: 8px; }
+    #oasis-simulation .profile-disclosure { margin-top: 7px; font-size: 9px; }
+    #oasis-simulation .progress-track { margin-top: 5px; }
+    #oasis-simulation .results { margin-top: 10px; padding: 11px; }
+    @media (max-width: 1100px) {
+      #oasis-simulation .month-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      #oasis-simulation .month-action { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.4fr); }
+      #oasis-simulation .garden-row { grid-template-columns: auto minmax(180px, 1fr) minmax(220px, 1.2fr); }
+      #oasis-simulation .tree-entry { grid-column: 2 / 4; grid-template-columns: 1fr 120px; }
+    }
+    @media (max-width: 720px) {
+      #oasis-simulation .garden-row { grid-template-columns: auto minmax(0, 1fr); }
+      #oasis-simulation .preparation-row { grid-template-columns: 1fr 1fr; }
+      #oasis-simulation .preparation-title { grid-column: 1 / -1; }
+      #oasis-simulation .prepare-status { grid-column: 1 / -1; }
+      #oasis-simulation .crop-facts, #oasis-simulation .tree-entry { grid-column: 1 / -1; }
+      #oasis-simulation .range-cards, #oasis-simulation .energy-cards { grid-template-columns: 1fr; }
+      #oasis-simulation .control-row-head { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 560px) {
+      #oasis-simulation .month-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      #oasis-simulation .timeline-actions { grid-template-columns: 1fr; }
+      #oasis-simulation .month-action { grid-template-columns: minmax(110px, .75fr) minmax(0, 1.25fr); }
+      #oasis-simulation .quick-card { min-height: 64px; }
+      #oasis-simulation .garden-row { grid-template-columns: 1fr; }
+      #oasis-simulation .preparation-row { grid-template-columns: 1fr; }
+      #oasis-simulation .crop-facts, #oasis-simulation .tree-entry { grid-column: auto; }
+      #oasis-simulation .preparation-title, #oasis-simulation .prepare-status { grid-column: auto; }
+      #oasis-simulation .tree-entry { grid-template-columns: 1fr 105px; }
+    }
+    #oasis-simulation .cycle-note, #oasis-simulation .source-note { margin: 4px 0; color: var(--muted); font-size: 9px; line-height: 1.35; }
+      #oasis-simulation .input-label-help { display: inline-flex; align-items: center; gap: 4px; }
+    #oasis-simulation .field-help { position: relative; display: inline-block; margin-left: 3px; vertical-align: middle; }
+    #oasis-simulation .field-help[open] { z-index: 60; }
+    #oasis-simulation .hint-toggle { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: 50%; background: var(--soft); color: var(--green-deep); font: inherit; font-size: 12px; font-weight: 600; line-height: 1; }
+    #oasis-simulation .hint-toggle::-webkit-details-marker { display: none; }
+    #oasis-simulation .hint-toggle::marker { content: ""; }
+    #oasis-simulation .hint-panel { position: absolute; top: calc(100% + 5px); left: 0; z-index: 70; display: block; width: 320px; max-width: calc(100vw - 32px); max-height: min(70vh, 380px); overflow: auto; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); font-size: 11px; line-height: 1.45; white-space: normal; }
+    #oasis-simulation .hint-panel p { margin: 0 0 7px; }
+    #oasis-simulation .hint-panel p:last-child { margin-bottom: 0; }
+    #oasis-simulation .hint-panel .quiz-question { color: var(--ink); font-weight: 600; }
+    #oasis-simulation .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    #oasis-simulation .quiz-option { min-width: 0; min-height: 38px; padding: 6px 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--ink); text-align: left; font: inherit; font-size: 11px; line-height: 1.3; }
+    #oasis-simulation .quiz-option.quiz-correct { border-color: var(--green); background: var(--green-soft); color: var(--green-deep); }
+    #oasis-simulation .quiz-option.quiz-wrong { border-color: var(--red); color: var(--red); }
+    #oasis-simulation .quiz-feedback { margin-top: 8px !important; padding-top: 7px; border-top: 1px solid var(--line); color: var(--green-deep); }
+    #oasis-simulation .method-quiz { margin: 8px 0 10px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--soft); }
+    #oasis-simulation .method-quiz .quiz-question { font-size: 12px; font-weight: 650; }
+    #oasis-simulation .scenario-disclosure { position: relative; }
+    #oasis-simulation .scenario-disclosure > summary { list-style: none; cursor: pointer; }
+    #oasis-simulation .scenario-disclosure > summary::-webkit-details-marker { display: none; }
+    #oasis-simulation .scenario-panel { position: absolute; top: calc(100% + 7px); right: 0; z-index: 80; width: min(470px, calc(100vw - 28px)); padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); font-size: 10px; line-height: 1.45; white-space: normal; }
+    #oasis-simulation .scenario-panel p { margin: 0; }
+    #oasis-simulation .scenario-panel a { color: var(--green-deep); }
+    #oasis-simulation .student-method-dialog { width: min(760px, calc(100vw - 24px)); max-width: none; max-height: min(88dvh, 900px); overflow: hidden; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: 0 16px 48px rgb(0 0 0 / 30%); }
+    #oasis-simulation .student-method-dialog::backdrop { background: rgb(15 25 18 / 55%); }
+    #oasis-simulation .method-dialog-content { max-height: min(calc(88dvh - 54px), 846px); overflow-y: auto; overflow-x: hidden; padding: 15px 18px 18px; }
+    #oasis-simulation .method-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 9px; border-bottom: 1px solid var(--line); }
+    #oasis-simulation .method-dialog-head h2 { font-size: 16px; }
+    #oasis-simulation .method-close { min-width: 40px; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); color: var(--ink); font: inherit; }
+    #oasis-simulation .generated-input { display: none !important; }
+    #oasis-simulation .crop-name { color: var(--ink); font-weight: 600; }
+    #oasis-simulation .crop-picker { flex-wrap: wrap; }
+    @media (pointer: coarse) {
+      #oasis-simulation .hint-toggle { width: 44px; height: 44px; }
+      #oasis-simulation .quiz-option { min-height: 44px; }
+    }
+    /* Larger, phone-readable text for figures and supporting labels. */
+    #oasis-simulation .timeline-status,
+    #oasis-simulation .brand-sub,
+    #oasis-simulation .scenario-tag,
+    #oasis-simulation .section-title small,
+    #oasis-simulation .field-value,
+    #oasis-simulation .field-label,
+    #oasis-simulation .group-title,
+    #oasis-simulation .range-card .field-label,
+    #oasis-simulation .range-card .field-value,
+    #oasis-simulation .helper,
+    #oasis-simulation .limits,
+    #oasis-simulation .control-row-title,
+    #oasis-simulation .prepare-status,
+    #oasis-simulation .preparation-label,
+    #oasis-simulation .preparation-title,
+    #oasis-simulation .prepare-button,
+    #oasis-simulation .run-note,
+    #oasis-simulation .crop-picker,
+    #oasis-simulation .crop-facts,
+    #oasis-simulation .tree-entry,
+    #oasis-simulation .quick-card-label,
+    #oasis-simulation .result-sub,
+    #oasis-simulation .cycle-note,
+    #oasis-simulation .source-note,
+    #oasis-simulation .credit-note,
+    #oasis-simulation .profile-disclosure,
+    #oasis-simulation .live-credit-summary,
+    #oasis-simulation .scenario-panel { font-size: 12px; }
+    #oasis-simulation .month-label { font-size: 11px; }
+    #oasis-simulation .month-inflow,
+    #oasis-simulation .month-carryover,
+    #oasis-simulation .month-unit { font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
+    #oasis-simulation .month-count { font-size: 13px; }
+    #oasis-simulation .month-trees { flex-wrap: wrap; justify-content: center; font-size: 11px; white-space: normal; }
+    #oasis-simulation .month { min-height: 64px; }
+    #oasis-simulation .range-card .limits { font-size: 11px; }
+    #oasis-simulation .release-exact-label { font-size: 11px; }
+    #oasis-simulation .release-exact { font-size: 12px !important; }
+    #oasis-simulation .mode-button { font-size: 11px; }
+    #oasis-simulation .month-action .run-button { font-size: 12px; }
+    #oasis-simulation .formula { font-size: 12px; }
+    #oasis-simulation .hint-panel,
+    #oasis-simulation .quiz-option,
+    #oasis-simulation .scenario-panel { font-size: 13px; }
+    #oasis-simulation .profile-table { min-width: 620px; font-size: 13px; }
+    #oasis-simulation .profile-table th,
+    #oasis-simulation .profile-table td { padding: 8px 7px; }
+    #oasis-simulation .compare { min-width: 620px; font-size: 14px; }
+    #oasis-simulation .compare th,
+    #oasis-simulation .compare td { padding: 9px 8px; }
+    #oasis-simulation .month-report { width: 100%; min-width: 1080px; table-layout: fixed; font-size: 14px; }
+    #oasis-simulation .month-report th,
+    #oasis-simulation .month-report td { padding: 9px 7px; overflow-wrap: anywhere; }
+    #oasis-simulation .month-report th { text-align: center; vertical-align: bottom; line-height: 1.25; }
+    #oasis-simulation .month-report td { line-height: 1.35; }
+    #oasis-simulation .month-report td small { font-size: 13px; }
+    #oasis-simulation .month-report col:nth-child(1) { width: 7%; }
+    #oasis-simulation .month-report col:nth-child(2),
+    #oasis-simulation .month-report col:nth-child(3) { width: 10%; }
+    #oasis-simulation .month-report col:nth-child(4) { width: 13%; }
+    #oasis-simulation .month-report col:nth-child(5) { width: 10%; }
+    #oasis-simulation .month-report col:nth-child(6) { width: 13%; }
+    #oasis-simulation .month-report col:nth-child(7) { width: 11%; }
+    #oasis-simulation .month-report col:nth-child(8) { width: 12%; }
+    #oasis-simulation .month-report col:nth-child(9) { width: 14%; }
+  </style>
+
+  <div class="screen">
+    <header class="masthead">
+      <div class="brand"><div class="brand-mark" aria-hidden="true">🌴</div><div class="brand-title">STEM · Екосистема Оазис</div></div>
+      <details class="scenario-disclosure"><summary class="scenario-tag">Прототип: Уед-Уарзазат, Марокко · притік 1:500</summary><div class="scenario-panel"><p>Уед-Уарзазат — сезонна річка на півдні Марокко, поблизу міста Уарзазат; вона належить до басейну річки Драа. У навчальній моделі притік задано з коефіцієнтом масштабування 1:500 — це розрахунковий прототип, а не точне відтворення фактичного водного режиму річки.</p></div></details>
+    </header>
+
+    <div class="scene-wrap">
+      <img class="scene" src="assets/oasis-dam-approved.png" alt="Ілюстрація оазису: річка, гори, дерева та лінії висот" draggable="false">
+      <img class="scene-variant scene-variant-from" id="scene-transition-from" src="assets/oasis-dam-approved.png" alt="" aria-hidden="true" draggable="false">
+      <img class="scene-variant scene-variant-to" id="scene-transition-to" src="assets/oasis-dam-approved.png" alt="" aria-hidden="true" draggable="false">
+      <img class="scene-dry-river-overlay" src="assets/oasis-river-empty-approved.png" alt="" aria-hidden="true" draggable="false">
+      <img class="scene-orchard-overlay" id="scene-orchard-overlay" src="assets/oasis-drought-half-zero-release.webp" alt="" aria-hidden="true" draggable="false">
+      <div class="ecosystem-warning" id="ecosystem-warning" aria-hidden="true"><img class="ecosystem-warning-image ecosystem-warning-image--uk" src="assets/oasis-greta-original.png" alt="" draggable="false"><img class="ecosystem-warning-image ecosystem-warning-image--en" src="assets/oasis-greta-cutout.png?v=20261120-2307" alt="" draggable="false"></div>
+      <div class="scene-actions"><button class="scene-test-button" id="test-simulation" type="button" aria-label="Підготувати симуляцію з комп’ютерними параметрами тесту" title="Підготувати комп’ютерні дані тесту; симуляція запускається окремою кнопкою">Тест</button><button class="scene-help-button" id="open-student-method" type="button" aria-label="Відкрити довідник і методику розрахунку">Довідка</button></div>
+    </div>
+
+        <main class="below-scene">
+      <section class="compact-timeline" aria-labelledby="timeline-title">
+        <div class="timeline-head"><h2 id="timeline-title">Річне моделювання росту саду</h2><div class="timeline-status" id="sim-status" aria-live="polite">Натисніть «Підготовка симуляції», щоб отримати завдання</div></div>
+        <div class="month-strip" id="month-strip" aria-label="Притік річки та кількість дерев за місяцями">
+          <div class="month"><span class="month-label">1 міс. · січ</span><span class="month-inflow">Притік: —</span><span class="month-carryover" id="january-carryover" hidden></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">2 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">3 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">4 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">5 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">6 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">7 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">8 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">9 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">10 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">11 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+          <div class="month"><span class="month-label">12 міс.</span><span class="month-inflow"></span><span class="month-trees"><span class="month-count">—</span><span>дерев</span></span></div>
+        </div>
+        <div class="timeline-actions"><div class="month-action"><button class="run-button" id="run-simulation" type="button">Підготовка симуляції</button><div class="prepare-status" id="prepare-status" aria-live="polite">Параметри завдання буде створено випадково</div></div><div class="quick-results" aria-live="polite" data-tooltip="Бали за врожай залежать лише від дерев, що виросли. Перевитрати кредитів віднімаються окремо наприкінці."><div class="quick-card quick-card-trees"><span class="quick-card-label">Дерев</span><strong id="quick-tree-count">—</strong></div><div class="quick-card quick-card-score"><span class="quick-card-label">Балів із 12</span><strong id="quick-score">—</strong></div></div></div>
+        <div class="progress-track" aria-label="Перебіг симуляції"><div class="progress-fill" id="progress-fill"></div></div>
+      </section>
+      <section class="garden-row" aria-label="Параметри саду">
+        <div class="garden-title">Сад · <span id="garden-area-label">—</span> га</div>
+        <div class="crop-picker"><span>Культура</span><strong class="crop-name" id="crop-name">—</strong><select id="crop" class="generated-input" aria-label="Культура, призначена випадково"><option value="palm">Фінікова пальма</option><option value="citrus">Цитрус</option><option value="olive">Олива</option><option value="fig">Інжир</option><option value="pomegranate">Гранат</option><option value="jujube">Зизифус</option><option value="pistachio">Фісташка справжня (Pistacia vera)</option><option value="cedar">Атласький кедр (Cedrus atlantica)</option><option value="acaciaRaddiana">Акація раддіана (Vachellia raddiana)</option><option value="tamarisk">Тамариск (Tamarix spp.)</option><option value="juniper">Ялівець фінікійський (Juniperus phoenicea)</option><option value="atlasPistachio">Фісташка атласька (Pistacia atlantica)</option></select><select id="garden-area" class="generated-input" aria-label="Площа саду, призначена випадково"><option value="1">1 га</option><option value="2">2 га</option><option value="3">3 га</option><option value="4">4 га</option><option value="5">5 га</option><option value="6">6 га</option><option value="7">7 га</option><option value="8">8 га</option><option value="9">9 га</option><option value="10">10 га</option></select><select id="rain-multiplier" class="generated-input" aria-label="Коефіцієнт притоку, призначений випадково"><option value="1">× 1,0</option><option value="1.1">× 1,1</option><option value="1.2">× 1,2</option><option value="1.3">× 1,3</option><option value="1.4">× 1,4</option><option value="1.5">× 1,5</option><option value="1.6">× 1,6</option><option value="1.7">× 1,7</option><option value="1.8">× 1,8</option><option value="1.9">× 1,9</option><option value="2">× 2,0</option></select></div>
+        <div class="crop-facts"><span>Крапельний полив на дерево: <strong id="crop-water">—</strong> л/добу</span><span>Крок садіння: <strong id="crop-spacing">—</strong> м</span><span>Саджанці: <strong id="tree-credits">0</strong> кредитів</span></div>
+        <label class="tree-entry" for="tree-count"><span>Посаджено дерев на <span id="garden-area-entry">—</span> га<details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про кількість дерев">?</summary><span class="hint-panel" role="note">Введіть власний розрахунок посадки за площею саду та відстанню між деревами. У першому місяці враховується вся задана кількість; дерева понад місткість саду зникнуть із наступного місяця.</span></details></span><input id="tree-count" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Ваш розрахунок" autocomplete="off" aria-label="Кількість дерев за розрахунком учня"></label>
+      </section>
+      <div class="compact-controls">
+        <section class="control-row" aria-label="Водосховище та магістральна труба">
+          <div class="control-row-head"><span class="control-row-title">Водосховище та магістральна труба</span></div>
+          <div class="range-cards">
+            <div class="range-card"><div class="label-line"><label class="field-label" for="dam-length">Довжина від водоспаду до греблі</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про довжину водосховища">?</summary><span class="hint-panel" role="note">Це довжина затопленої ділянки русла від водоспаду до греблі. За незмінного поперечного перерізу місткість чаші зростає прямо пропорційно цій довжині.</span></details><span class="field-value"><span id="dam-length-value">600</span> м</span></div><input id="dam-length" type="range" min="0" max="2000" step="10" value="600" aria-label="Довжина водосховища вздовж русла"><div class="limits"><span>0 м</span><span>2 000 м</span></div><p class="helper">Вартість довжини: <strong class="credit-inline" id="dam-length-credits">0</strong> кредитів · 1 кредит/м.</p></div>
+            <div class="range-card"><div class="label-line"><label class="field-label" for="dam-height">Висота греблі</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про висоту греблі">?</summary><span class="hint-panel" role="note">У спрощеній моделі висота греблі дорівнює радіусу півкруглого поперечного перерізу чаші. Об’єм зростає пропорційно квадрату висоти.</span></details><span class="field-value"><span id="dam-height-value">7</span> м</span></div><input id="dam-height" type="range" min="0" max="10" step="1" value="7" aria-label="Висота греблі в метрах"><div class="limits"><span>0 м</span><span>10 м</span></div><p class="helper">Вартість висоти: <strong class="credit-inline" id="dam-height-credits">0</strong> кредитів · 100 кредитів/м.</p></div>
+        <div class="range-card"><div class="label-line"><label class="field-label" for="river-release">Постійний скид у річку</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про постійний скид">?</summary><span class="hint-panel" role="note">Це об’єм води, який щомісяця залишається в річці нижче греблі. Учень може обрати й 0 м³/міс.; за нульового скиду вода нижче греблі не підтримується.</span></details><span class="field-value"><span id="river-release-value">0</span> м³/міс.</span></div><div class="release-control"><input id="river-release" type="range" min="0" max="48000" step="1" value="0" aria-label="Постійний місячний скид води в річку"><label class="release-exact-label" for="river-release-exact">Точне значення, м³/міс.<input class="release-exact" id="river-release-exact" type="number" min="0" max="48000" step="1" value="0" aria-label="Точне значення постійного скиду"></label></div><div class="limits"><span id="release-min-label">0 м³</span><span id="release-max-label">48 000 м³</span></div><p class="helper">Вибирайте ціле число; стрілки ←/→ змінюють скид на 1 м³/міс. Дробова частина відкидається. Відхилення скиду до 1 000 м³/міс. не знижує оцінку. Перелив наведено в балансі води для довідки; він не впливає на оцінку.</p></div><div class="range-card"><div class="label-line"><label class="field-label" for="pipe">Внутрішній діаметр труби</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про діаметр труби">?</summary><span class="hint-panel" role="note">Скористайтеся формулою з методики розрахунку: за витратою та допустимою швидкістю потоку визначте площу перерізу, а потім внутрішній діаметр труби.</span></details><span class="field-value"><span id="pipe-value">1</span> мм</span></div><input id="pipe" type="range" min="0" max="1" step="1" value="1" aria-label="Внутрішній діаметр магістральної труби"><div class="limits"><span>0 мм</span><span>Межа шкали: <span id="pipe-max">—</span> мм</span></div><p class="helper">Вартість на 100 м: <strong class="credit-inline" id="pipe-credits">0</strong> кредитів (5 кредитів/мм).</p></div>
+          </div>
+        </section>
+        <section class="control-row" aria-label="Насос та енергія">
+          <div class="control-row-head"><span class="control-row-title">Насос та енергія</span><span class="cycle-note" id="mode-status" aria-live="polite">Режим залежить від ємності акумулятора</span></div>
+          <p class="cycle-note">День і ніч тривають по 12 годин. З акумулятором насос може працювати вночі; фактична тривалість залежить від доступної енергії панелей і ємності акумулятора.</p><div class="range-cards energy-cards">
+            <div class="range-card"><div class="label-line"><label class="field-label" for="pump">Потужність насоса</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про потужність насоса">?</summary><span class="hint-panel" role="note">Без акумулятора насос працює умовні 12 годин удень; з акумулятором може працювати також уночі. Максимум 4,8 кВт — удвічі більше за розрахункову потребу саду площею 10 га з найбільшим водоспоживанням.</span></details><span class="field-value"><span id="pump-value">4,8</span> кВт</span></div><input id="pump" type="range" min="0" max="4.8" step="0.1" value="4.8" aria-label="Потужність насоса в кіловатах"><div class="limits"><span>0 кВт</span><span id="pump-max">4,8 кВт</span></div><p class="helper">Вартість: <strong class="credit-inline" id="pump-credits">0</strong> кредитів · 100 кредитів/кВт.</p></div>
+            <div class="range-card"><div class="label-line"><label class="field-label" for="solar">Потужність сонячних панелей</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про сонячні панелі">?</summary><span class="hint-panel" role="note">Потужність панелей вимірюється у кВт. Верхня межа приблизно у 2,3 раза перевищує максимальну потужність насоса; рекомендована потужність панелей — 2× потужності насоса.</span></details><span class="field-value"><span id="solar-value">9,6</span> кВт</span></div><input id="solar" type="range" min="0" max="11.1" step="0.1" value="9.6" aria-label="Потужність сонячних панелей у кіловатах"><div class="limits"><span>0 кВт</span><span id="solar-max">11,1 кВт</span></div><p class="helper">Вартість потужності: <strong class="credit-inline" id="solar-credits">0</strong> кредитів · 100 кредитів/кВт.</p></div>
+            <div class="range-card"><div class="label-line"><label class="field-label" for="battery">Ємність акумулятора</label><details class="field-help"><summary class="hint-toggle cursor-interaction" aria-label="Підказка про акумулятор">?</summary><span class="hint-panel" role="note">Ємність вимірюється у кВт·год. Верхня межа дорівнює 15 годинам роботи насоса на максимальній потужності; рекомендована ємність — 12× потужності насоса.</span></details><span class="field-value"><span id="battery-value">0</span> кВт·год</span></div><input id="battery" type="range" min="0" max="72" step="0.1" value="0" aria-label="Ємність акумулятора в кіловат-годинах"><div class="limits"><span>0 кВт·год</span><span id="battery-max">72 кВт·год</span></div><p class="helper">Вартість ємності: <strong class="credit-inline" id="battery-credits">0</strong> кредитів · 10 кредитів/кВт·год.</p></div>
+          </div>
+          <p class="live-credit-summary" id="live-credit-summary" aria-live="polite">Кредити за вибраними параметрами: 0</p>
+        </section>
+      </div>
+      <dialog class="student-method-dialog" id="student-method-dialog" aria-labelledby="student-method-title">
+        <div class="method-dialog-content"><div class="method-dialog-head"><h2 id="student-method-title">Покрокова методика розрахунку</h2><button class="method-close" id="close-student-method" type="button" aria-label="Закрити методику">Закрити</button></div>
+        <p class="credit-note"><strong>Коефіцієнт опадів:</strong> від 1 до 2 випадково обирається під час підготовки даних; він однаково змінює кожен місячний притік. Множник у поточному завданні: ×<span id="rain-factor-note">—</span>.</p>
+        <p class="credit-note"><strong>Порядок роботи:</strong> спочатку натисніть «Підготовка симуляції», щоб створити завдання. Потім розрахуйте всі параметри та внесіть значення у відповідні поля на екрані. Після цього натисніть «Запустити симуляцію».</p>
+        <p class="credit-note"><strong>Для демонстрації та тесту:</strong> натисніть «Тест», а потім «Запустити симуляцію». Кнопка «Тест» щоразу завантажує той самий набір параметрів.</p>
+        <p class="credit-note"><strong>Орієнтир для крапельного поливу:</strong> добові норми в моделі відповідають спекотному сезону. База для фінікової пальми — 265 л/дерево/добу, приблизно 0,33 від орієнтира 800 л за звичайного поливу. Норми нових видів оцінено пропорційно за відносними коефіцієнтами потреби у воді та відстанню між деревами. Це навчальні оцінки, а не готові агрономічні рекомендації.</p>
+        <ol class="calculation-steps">
+          <li><strong>Розрахуйте посадку.</strong> За квадратної схеми: <span class="formula">Nмісць = ⌊площа (га) × 10 000 ÷ крок²⌋</span>Наприклад, 10 га та крок пальми 10 м: 100 000 ÷ 100 = 1 000 пальм. Це гранична місткість саду; у полі «Посаджено дерев» укажіть власну кількість.</li>
+          <li><strong>Визначте потребу саду у воді.</strong> <span class="formula">Wдень = N × л/дерево/добу ÷ 1 000</span><span class="formula">Wмісяць = Wдень × 30; Wрік = Wмісяць × 12</span>Це модель спекотного сезону: на цьому рівні опади та випаровування не віднімаються.</li>
+          <li><strong>Визначте притік і постійний скид.</strong> Площу, культуру та коефіцієнт опадів випадково задає кнопка підготовки. Кожен місячний притік дорівнює табличному профілю, помноженому на випадковий коефіцієнт. Мінімальний скид Rmin — найменший місячний притік. Для повного поливу та однакового запасу на початку кожного року розрахунковий постійний скид: <span class="formula">R = (Σ притоків за 12 міс. − Wрік) ÷ 12</span>Якщо R нижче Rmin, за такого обов’язкового скиду сад не можна повністю поливати.</li>
+          <li><strong>Врахуйте екологічний резерв чаші.</strong> Це недоторканний залишковий об’єм води, рекомендований для збереження водної екосистеми водосховища. Як навчальний орієнтир прийміть резерв, що дорівнює притоку річки за найпосушливіший місяць: <span class="formula">Sекол = min(притікi)</span>Це спрощене припущення, а не універсальна гідрологічна норма. З екологічного погляду чашу не слід спорожнювати повністю — залишайте цей запас води. Комп’ютерний орієнтир враховує резерв під час добору чаші. Симулятор не обмежує водозабір у проєкті учня: можна помилитися, а фактичний залишок води буде видно у звіті.</li>
+          <li><strong>Розрахуйте сезонний запас води.</strong> Для кожного місяця обчисліть <span class="formula">Δi = притікi − R − Wмісяць; Pk = Δ1 + … + Δk</span>Потрібний запас на 1 січня з урахуванням екологічного резерву: <span class="formula">Sсіч = Sекол + max(0, −min(P0…P12))</span>Необхідна місткість чаші без переливу: <span class="formula">Cпотр = Sекол + max(P0…P12) − min(P0…P12)</span>Комп’ютер переносить Sсіч із залишку за грудень попереднього року.</li>
+          <li><strong>Доберіть довжину та висоту греблі.</strong> Для кожної висоти h від 1 до 10 м визначте потрібну довжину затопленого русла, щоб умістити розрахований сезонний запас. Крок довжини в симуляторі — 10 м. Спочатку дайте відповідь на запитання про формулу об’єму чаші:
+            <div class="help-quiz method-quiz"><p class="quiz-question">Як розрахувати об’єм чаші з півкруглим перерізом і довжиною L?</p><div class="quiz-options" role="group" aria-label="Чотири варіанти формули об’єму чаші"><button type="button" class="quiz-option cursor-interaction" data-answer-label="V = π × h² × L">V = π × h² × L</button><button type="button" class="quiz-option cursor-interaction" data-correct="true" data-answer-label="V = (π × h² ÷ 2) × L">V = (π × h² ÷ 2) × L</button><button type="button" class="quiz-option cursor-interaction" data-answer-label="V = 2 × π × h × L">V = 2 × π × h × L</button><button type="button" class="quiz-option cursor-interaction" data-answer-label="V = π × h² ÷ (2 × L)">V = π × h² ÷ (2 × L)</button></div><p class="quiz-feedback" role="status" aria-live="polite" hidden></p></div>
+          Якщо Lmin ≤ 2 000 м, перевірте вартість <span class="formula">Кгреблі = L × 1 + h × 100 кредитів</span>Порівняйте варіанти: комп’ютер спочатку зберігає найбільший урожай, а серед варіантів з однаковим урожаєм обирає дешевшу греблю; за однакової вартості надає перевагу варіанту з меншою площею затоплення дерев. Якщо жодна чаша не вміщує Cпотр, режим без переливу неможливий у межах ігрової довжини.</li>
+          <li><strong>Розрахуйте насос і магістральну трубу.</strong> У комп’ютерному варіанті насос працює 24 години на добу з акумулятором. <span class="formula">Pнасоса ≈ Qнасоса × 0,0908 (кВт); 1 кВт ≈ 11 013 л/год</span><strong>Wдень</strong> — загальний об’єм води, потрібний саду за добу, у м³. Обчисліть його за кількістю дерев і добовою нормою на одне дерево: <span class="formula">Wдень = кількість дерев × л/дерево/добу ÷ 1 000</span>Для труби використовуйте Q у м³/с і швидкість v = 1,5 м/с. Щоб знайти Q, поділіть добовий об’єм Wдень на кількість годин роботи насоса за день, помножену на 3 600 секунд за годину: <span class="formula">Q = Wдень ÷ (години роботи насоса за день × 3 600)</span>Так добовий об’єм переводиться у витрату за секунду; з акумулятором насос може працювати 24 години, без нього — 12 годин удень. Формулу діаметра та докладне пояснення знайдете у картці:
+            <div class="help-quiz method-quiz"><p class="quiz-question">Як знайти внутрішній діаметр D труби за витратою Q і швидкістю потоку v?</p><div class="quiz-options" role="group" aria-label="Чотири варіанти формули діаметра труби"><button type="button" class="quiz-option cursor-interaction" data-answer-label="D = Q ÷ v">D = Q ÷ v</button><button type="button" class="quiz-option cursor-interaction" data-correct="true" data-answer-label="D = 2 × √(Q ÷ (π × v))">D = 2 × √(Q ÷ (π × v))</button><button type="button" class="quiz-option cursor-interaction" data-answer-label="D = π × Q ÷ v">D = π × Q ÷ v</button><button type="button" class="quiz-option cursor-interaction" data-answer-label="D = √(π × v ÷ Q)">D = √(π × v ÷ Q)</button></div><p class="quiz-feedback" role="status" aria-live="polite" hidden></p></div>
+          Спочатку насос забирає min(запас у чаші + місячний притік, межа обладнання), де межа обладнання — менше зі значень продуктивності насоса та пропускної здатності труби. Потім фактичний скид нижче греблі дорівнює min(залишок води після поливу, заданий скид). Частка потреби живих дерев, покрита поливом, визначає їхнє виживання; за нестачі води кількість дерев зменшується пропорційно, а подальша потреба рахується за тими, що вижили.</li>
+          <li><strong>Доберіть сонячні панелі й акумулятор.</strong> Укажіть потужність панелей і ємність акумулятора. День і ніч у моделі тривають по 12 годин; перевірте, як вибрані значення впливають на полив і результат річної симуляції.</li>
+          <li><strong>Перевірте результат симуляції.</strong> Перегляньте щомісячний звіт, залишок води, кількість живих дерев та підсумкові бали. Запропоновану систему кредитів та оцінювання наведено наприкінці цього довідника.</li>
+        </ol>
+        <p class="credit-note"><strong>Контрольний приклад:</strong> 10 га фінікових пальм із кроком 10 м — 1 000 дерев; крапельний полив — 265 м³/добу, 7 950 м³/місяць і 95 400 м³/рік. Варіант комп’ютера з екологічним резервом: гребля 560 м × 10 м, насос 1,1 кВт, труба 53 мм, панелі 2,2 кВт, акумулятор 13,5 кВт·год.</p>
+        <section class="credit-guide" aria-labelledby="credit-guide-title">
+        <h3 class="credit-heading" id="credit-guide-title">Запропонована система кредитів та оцінювання</h3>
+        <div class="compare-wrap"><table class="profile-table">
+          <thead><tr><th>Стаття</th><th>Умовна вартість</th><th>Бали</th></tr></thead>
+          <tbody>
+            <tr><td>Довжина греблі</td><td>100 кредитів за 100 м</td><td rowspan="2">враховується в економічному вирахуванні</td></tr>
+            <tr><td>Висота греблі</td><td>100 кредитів за 1 м</td></tr>
+            <tr><td>Достатня місткість греблі</td><td>Порівняння з об’ємом комп’ютерного орієнтира</td><td>до 1</td></tr>
+            <tr><td>Збереження дерев від затоплення</td><td>Повний бал, якщо затоплено не більше, ніж у комп’ютерному орієнтирі</td><td>до 1</td></tr>
+            <tr><td>Насос</td><td>100 кредитів за 1 кВт</td><td>до 0,75 за достатню подачу</td></tr>
+            <tr><td>Магістральна труба, 100 м</td><td>5 кредитів за 1 мм діаметра</td><td>до 0,75 за достатній діаметр</td></tr>
+            <tr><td>Сонячні панелі</td><td>100 кредитів за 1 кВт</td><td>до 0,75 за достатню потужність</td></tr>
+            <tr><td>Акумулятор</td><td>10 кредитів за 1 кВт·год</td><td>до 0,75 за достатню ємність</td></tr>
+            <tr><td>Саджанці</td><td>1 кредит за дерево</td><td>включено до собівартості</td></tr>
+            <tr><td>Кількість вирощених дерев</td><td>6 × вирощені дерева ÷ комп’ютерний орієнтир; перевитрата кредитів не впливає на цей бал</td><td>до 6</td></tr>
+            <tr><td>Скид у річку</td><td>Бали за збільшення скиду до безпечного максимуму</td><td>до 1</td></tr>
+            
+            <tr><td>Штраф за скид</td><td>Якщо постійний скид відрізняється від безпечного максимуму більш ніж на 1 000 м³/міс., знімається 1 бал</td><td>−1</td></tr>
+            <tr><td>Базова сума</td><td>Урожай — 6, обладнання — 5, додатковий скид — 1</td><td>до 12</td></tr>
+            <tr><td>Перевитрата кредитів</td><td>Кредити понад комп’ютерний орієнтир віднімаються після нарахування балів</td><td>штраф</td></tr>
+          </tbody>
+        </table></div>
+         <p class="credit-note">Спочатку нараховуються бали за фактично вирощені дерева та достатню потужність обладнання. Потім перевитрата кредитів переводиться в еквівалент дерев і окремим штрафом віднімається від базової суми; вона не зменшує 6 балів за повний урожай. Фактична кількість живих дерев при цьому не змінюється. Гребля отримує до 1 бала за достатню місткість і до 1 бала за збереження дерев. За насос, трубу, панелі й акумулятор нараховується по 0,75 бала. Максимальний безпечний скид і залишок на початок січня розраховуються за повторюваним річним балансом. Якщо постійний скид відрізняється від безпечного максимуму більш ніж на 1 000 м³/міс., знімається 1 бал. Перелив наведено в щомісячному водному балансі для довідки; за нього не знімаються бали незалежно від об’єму.</p>
+        </section></div>
+      </dialog>
+      <section class="results" id="results" hidden aria-live="polite">
+        <div class="result-heading"><div><h2>Підсумок року</h2><div class="result-sub" id="result-sub">Порівняння з комп’ютерним орієнтиром</div></div></div>
+        <div class="compare-wrap"><table class="compare" id="compare-table"></table></div>
+        <div class="credit-heading">Кредити проєкту</div><div class="compare-wrap"><table class="compare" id="credit-cost-table"></table></div>
+        <div class="credit-heading">Бали за категоріями</div><div class="compare-wrap"><table class="compare" id="credit-score-table"></table></div>
+        <div class="compare-wrap"><table class="month-report" id="month-report"></table></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('oasis-simulation');
+      if (!root || root.dataset.ready === '1') return;
+      root.dataset.ready = '1';
+      const crops = {
+        // Peak-season drip estimates normalized to the date palm (265 L/tree/day).
+        // See README section 11 for the source ratios and assumptions.
+        palm: { label: 'Фінікова пальма', litresPerTreeDay: 265, spacing: 10 },
+        citrus: { label: 'Цитрус', litresPerTreeDay: 82, spacing: 6 },
+        olive: { label: 'Олива', litresPerTreeDay: 98, spacing: 7 },
+        fig: { label: 'Інжир', litresPerTreeDay: 92, spacing: 6 },
+        pomegranate: { label: 'Гранат', litresPerTreeDay: 61, spacing: 5 },
+        jujube: { label: 'Зизифус', litresPerTreeDay: 50, spacing: 5 },
+        pistachio: { label: 'Фісташка справжня (Pistacia vera)', litresPerTreeDay: 154, spacing: 7 },
+        cedar: { label: 'Атласький кедр (Cedrus atlantica)', litresPerTreeDay: 347, spacing: 8 },
+        acaciaRaddiana: { label: 'Акація раддіана (Vachellia raddiana)', litresPerTreeDay: 241, spacing: 10 },
+        tamarisk: { label: 'Тамариск (Tamarix spp.)', litresPerTreeDay: 195, spacing: 9 },
+        juniper: { label: 'Ялівець фінікійський (Juniperus phoenicea)', litresPerTreeDay: 121, spacing: 6 },
+        atlasPistachio: { label: 'Фісташка атласька (Pistacia atlantica)', litresPerTreeDay: 154, spacing: 8 }
+      };
+      const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
+      const sceneAssets = {
+        healthy: 'assets/oasis-dam-approved.png',
+        gardenFirst: 'assets/oasis-drought-first.webp',
+        gardenHalf: 'assets/oasis-drought-final.webp',
+        riverFirst: 'assets/oasis-river-empty-approved.png',
+        riverOnly: 'assets/oasis-river-empty-approved.png',
+        gardenHalfRiver: 'assets/oasis-drought-half-zero-release.webp',
+        gardenAll: 'assets/oasis-drought-all.webp',
+        gardenAllRiver: 'assets/oasis-drought-all-zero-release.webp',
+        dryDam: 'assets/oasis-dam-dry-fish.png',
+        riverbankFlooded: 'assets/oasis-riverbank-flooded-trees.png'
+      };
+      const baseInflow = [48000, 43000, 38000, 27000, 21000, 16000, 5000, 4000, 6000, 13000, 21000, 48000];
+      let inflow = baseInflow.slice();
+      let minimumMonthlyInflow = Math.min(...inflow);
+      const demandFactor = Array(12).fill(1);
+      const days = Array(12).fill(30);
+      const pipeVelocity = 1.5;
+      const head = 20;
+      const efficiency = 0.60;
+      const energyPerM3 = 0.0908;
+      const monthlyWaterTolerance = 1000;
+      const visuallyEmptyDamThreshold = 1;
+      const $ = (selector) => root.querySelector(selector);
+      const controls = {
+        crop: $('#crop'), treeCount: $('#tree-count'), area: $('#garden-area'), rainMultiplier: $('#rain-multiplier'), length: $('#dam-length'), height: $('#dam-height'),
+        release: $('#river-release'), releaseExact: $('#river-release-exact'), pipe: $('#pipe'), pump: $('#pump'), solar: $('#solar'), battery: $('#battery')
+      };
+      const maxModelDailyDemand = Math.max(...Object.values(crops).map((crop) => crop.litresPerTreeDay * Math.floor(10 * 10000 / Math.pow(crop.spacing, 2)) / 1000));
+      const requiredMaximumPumpKW = 1000 * 9.81 * (maxModelDailyDemand / (12 * 3600)) * head / efficiency / 1000;
+      const maximumPumpKW = Math.ceil(requiredMaximumPumpKW * 2 * 10 - 1e-9) / 10;
+      const maximumSolarKW = Math.ceil(maximumPumpKW * 2.3 * 10 - 1e-9) / 10;
+      const maximumBatteryKWh = maximumPumpKW * 15;
+      let mode = 'day';
+      let running = false;
+      let prepared = false;
+      let preparedReference = null;
+      let lastCompletedResults = null;
+      let simulationConsumed = false;
+      let computerTestMode = false;
+      let lastRandomAssignment = '';
+      let timer = null;
+      let sceneTransitionTimer = null;
+      let sceneVisualKey = 'healthy';
+      let orchardDroughtOccurred = false;
+      let riverbankDroughtOccurred = false;
+      let riverbankFloodingOccurred = false;
+      let orchardCompletelyDry = false;
+      let damCompletelyDry = false;
+      let applyingSaved = false;
+      let lastLocalEdit = 0;
+      const fmt = (n, d = 0) => new Intl.NumberFormat(window.OCEANUA_OASIS_LANGUAGE === 'en' ? 'en-US' : 'uk-UA', { maximumFractionDigits: d, minimumFractionDigits: d }).format(n);
+      const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+      const largestSafeReleaseInteger = (value) => Math.floor(value + 1e-9);
+      const areaHectares = () => Number(controls.area.value) || 10;
+      const areaM2 = () => areaHectares() * 10000;
+      const theoreticalTrees = (cropKey = controls.crop.value) => Math.floor(areaM2() / Math.pow((crops[cropKey] || crops.palm).spacing, 2));
+      function configureEnergyRanges() {
+        controls.pump.max = maximumPumpKW.toFixed(1);
+        controls.solar.max = maximumSolarKW.toFixed(1);
+        controls.battery.max = maximumBatteryKWh.toFixed(1);
+        $('#pump-max').textContent = fmt(maximumPumpKW, 1) + ' кВт';
+        $('#solar-max').textContent = fmt(maximumSolarKW, 1) + ' кВт';
+        $('#battery-max').textContent = fmt(maximumBatteryKWh, 1) + ' кВт·год';
+        if (Number(controls.pump.value) > maximumPumpKW) controls.pump.value = String(maximumPumpKW);
+        if (Number(controls.solar.value) > maximumSolarKW) controls.solar.value = String(maximumSolarKW);
+        if (Number(controls.battery.value) > maximumBatteryKWh) controls.battery.value = String(maximumBatteryKWh);
+      }
+      function assignRandomScenario() {
+        const cropKeys = Object.keys(crops);
+        let assignment;
+        do {
+          assignment = {
+            crop: cropKeys[Math.floor(Math.random() * cropKeys.length)],
+            area: 1 + Math.floor(Math.random() * 10),
+            rainMultiplier: (10 + Math.floor(Math.random() * 11)) / 10
+          };
+        } while (cropKeys.length * 10 * 11 > 1 && JSON.stringify(assignment) === lastRandomAssignment);
+        lastRandomAssignment = JSON.stringify(assignment);
+        controls.crop.value = assignment.crop;
+        controls.area.value = String(assignment.area);
+        controls.rainMultiplier.value = String(assignment.rainMultiplier);
+        controls.treeCount.value = '';
+      }
+      function resetProjectSliders() {
+        controls.length.value = '0';
+        controls.height.value = '0';
+        controls.release.value = '0';
+        controls.releaseExact.value = '0';
+        controls.pipe.value = '0';
+        controls.pump.value = '0';
+        controls.solar.value = '0';
+        controls.battery.value = '0';
+      }
+      function readTreeCount() {
+        const raw = controls.treeCount.value.trim();
+        if (!/^[0-9]+$/.test(raw)) return 0;
+        const count = Number(raw);
+        return Number.isSafeInteger(count) ? count : 0;
+      }
+      const getState = () => ({
+        crop: controls.crop.value, treeCount: readTreeCount(), area: areaHectares(), rainMultiplier: Number(controls.rainMultiplier.value) || 1,
+        length: Number(controls.length.value) || 0, height: Number(controls.height.value) || 0,
+        release: Math.trunc(Number(controls.release.value)) || 0, pipe: Number(controls.pipe.value) || 0,
+        pump: Number(controls.pump.value) || 0, solar: Number(controls.solar.value) || 0,
+        battery: Number(controls.battery.value) || 0, mode: Number(controls.battery.value) > 0 ? 'battery' : 'day'
+      });
+      const cropData = (st = getState()) => crops[st.crop] || crops.palm;
+
+      const requiredDailyWater = (st = getState()) => cropData(st).litresPerTreeDay * Math.max(0, st.treeCount) / 1000;
+      const requiredPipe = (st = getState()) => {
+        const hours = (st.mode || mode) === 'day' ? 12 : 24;
+        const q = requiredDailyWater(st) / (hours * 3600);
+        return Math.sqrt(4 * q / (Math.PI * pipeVelocity)) * 1000;
+      };
+      const requiredPump = (st = getState()) => {
+        const hours = (st.mode || mode) === 'day' ? 12 : 24;
+        const q = requiredDailyWater(st) / (hours * 3600);
+        return 1000 * 9.81 * q * head / efficiency / 1000;
+      };
+      const pumpFlowLitresPerHour = (powerKW) => powerKW / energyPerM3 * 1000;
+      const pipeFlowLitresPerHour = (diameterMm) => Math.PI * Math.pow(diameterMm / 2000, 2) * pipeVelocity * 3600 * 1000;
+      const requiredSolar = (st = getState()) => (st.mode || mode) === 'day' ? requiredPump(st) : requiredPump(st) * 2;
+      const requiredBattery = (st = getState()) => (st.mode || mode) === 'day' ? 0 : requiredPump(st) * 12;
+      function updateSimulationAction() {
+        const button = $('#run-simulation');
+        button.disabled = running;
+        button.textContent = running ? 'Симуляція триває…' : simulationConsumed ? 'Підготувати нову симуляцію' : prepared ? 'Запустити симуляцію' : 'Підготовка симуляції';
+        $('#test-simulation').disabled = running;
+      }
+      function resetResults() {
+        lastCompletedResults = null;
+        if (timer) clearTimeout(timer);
+        timer = null;
+        running = false;
+        $('#results').hidden = true;
+        $('#quick-tree-count').textContent = '—';
+        $('#quick-score').textContent = '—';
+        updateSimulationAction();
+        const planted = readTreeCount();
+        $('#sim-status').textContent = simulationConsumed
+          ? 'Симуляцію використано · підготуйте нове випадкове завдання'
+          : prepared
+          ? (planted > 0 ? 'Дані готові · на початок року ' + fmt(planted) + ' дерев · 12 місяців' : 'Дані готові · очікує запуску · 12 місяців')
+          : 'Натисніть «Підготовка симуляції», щоб отримати завдання';
+        updateMonthInflows();
+        $('#progress-fill').style.width = '0%';
+        root.querySelectorAll('.month').forEach((cell) => {
+          cell.classList.remove('current', 'complete', 'dry');
+          cell.querySelector('.month-count').textContent = '—';
+          const reason = cell.querySelector('.month-reason');
+          if (reason) { reason.textContent = ''; reason.removeAttribute('title'); }
+        });
+      }
+      function lockInputs(locked) {
+        Object.values(controls).forEach((input) => { input.disabled = locked; });
+        root.querySelectorAll('[data-mode]').forEach((button) => { button.disabled = locked; });
+        updateSimulationAction();
+      }
+      function configurePipeRange() {
+        const st = getState();
+        const maxDailyDemand = Math.max(...Object.entries(crops).map(([key, crop]) => crop.litresPerTreeDay * theoreticalTrees(key) / 1000));
+        const maxFlow = maxDailyDemand / (12 * 3600);
+        const max = Math.max(1, Math.ceil(Math.sqrt(4 * maxFlow / (Math.PI * pipeVelocity)) * 2000));
+        if (Number(controls.pipe.max) !== max) controls.pipe.max = String(max);
+        if (Number(controls.pipe.value) < 0) controls.pipe.value = '0';
+        $('#pipe-max').textContent = fmt(max);
+        $('#pipe-value').textContent = fmt(Number(controls.pipe.value));
+      }
+      function renderInputs() {
+        const st = getState();
+        const costs = projectCredits(st);
+        const crop = cropData(st);
+        $('#garden-area-label').textContent = prepared ? fmt(st.area) : '—';
+        $('#garden-area-entry').textContent = prepared ? fmt(st.area) : '—';
+        $('#crop-name').textContent = prepared ? crop.label : '—';
+        $('#crop-water').textContent = prepared ? fmt(crop.litresPerTreeDay) : '—';
+        $('#crop-spacing').textContent = prepared ? fmt(crop.spacing) : '—';
+        $('#dam-length-value').textContent = fmt(st.length);
+        $('#dam-height-value').textContent = fmt(st.height);
+        $('#river-release-value').textContent = fmt(st.release);
+        controls.releaseExact.value = String(Math.trunc(st.release));
+        $('#pipe-value').textContent = fmt(st.pipe);
+        $('#pump-value').textContent = fmt(st.pump, 1);
+        $('#solar-value').textContent = fmt(st.solar, 1);
+        $('#battery-value').textContent = fmt(st.battery, 1);
+        $('#dam-length-credits').textContent = fmt(costs.damLength);
+        $('#dam-height-credits').textContent = fmt(costs.damHeight);
+        $('#pipe-credits').textContent = fmt(costs.pipe);
+        $('#pump-credits').textContent = fmt(costs.pump);
+        $('#solar-credits').textContent = fmt(costs.solar);
+        $('#battery-credits').textContent = fmt(costs.battery);
+        $('#tree-credits').textContent = fmt(costs.seedlings);
+        $('#live-credit-summary').textContent = 'Поточні витрати: ' + fmt(costs.total) + ' кредитів · гребля ' + fmt(costs.dam) + ' · труба й енергія ' + fmt(costs.pipe + costs.pump + costs.solar + costs.battery) + ' · саджанці ' + fmt(costs.seedlings) + ' кредитів.';
+        mode = st.mode;
+        const availablePumpHours = maxWaterPerMonth(st, 0, st.pipe, false).operatingHours;
+        $('#mode-status').textContent = 'Насос: ' + fmt(availablePumpHours, 1) + ' год/добу за доступної енергії';
+      }
+      function saveState() {
+        if (applyingSaved) return;
+        Promise.resolve(window.openai?.setWidgetState?.({ modelContent: getState(), privateContent: null })).catch(() => {});
+      }
+      function applyState(state) {
+        if (!state || typeof state !== 'object') return;
+        applyingSaved = true;
+        if (state.crop && crops[state.crop]) controls.crop.value = state.crop;
+        if (Number.isSafeInteger(state.treeCount) && state.treeCount >= 0) controls.treeCount.value = String(state.treeCount);
+        if (Number.isFinite(state.area)) controls.area.value = String(clamp(Math.round(state.area), 1, 10));
+        if (Number.isFinite(state.rainMultiplier)) controls.rainMultiplier.value = String(clamp(Math.round(state.rainMultiplier * 10) / 10, 1, 2));
+        if (Number.isFinite(state.length ?? state.damLength)) controls.length.value = String(clamp(state.length ?? state.damLength, 0, 2000));
+        if (Number.isFinite(state.height ?? state.damHeight)) controls.height.value = String(clamp(state.height ?? state.damHeight, 0, 10));
+        if (Number.isFinite(state.release)) controls.release.value = String(clamp(Math.trunc(state.release), 0, 48000));
+        if (Number.isFinite(state.pump)) controls.pump.value = String(clamp(state.pump, 0, maximumPumpKW));
+        if (Number.isFinite(state.solar)) controls.solar.value = String(clamp(state.solar, 0, maximumSolarKW));
+        if (Number.isFinite(state.battery)) controls.battery.value = String(clamp(state.battery, 0, maximumBatteryKWh));
+        mode = Number(controls.battery.value) > 0 ? 'battery' : 'day';
+        configurePipeRange();
+        if (Number.isFinite(state.pipe)) controls.pipe.value = String(clamp(state.pipe, 0, Number(controls.pipe.max)));
+        applyingSaved = false;
+      }
+      function updateMonthInflows() {
+        root.querySelectorAll('.month').forEach((cell, i) => {
+          const inflowLabel = cell.querySelector('.month-inflow');
+          if (inflowLabel) inflowLabel.textContent = prepared ? 'Притік: ' + fmt(inflow[i]) + ' м³' : 'Притік: —';
+          const carryoverLabel = cell.querySelector('.month-carryover');
+          if (carryoverLabel) {
+            const carryover = prepared && preparedReference ? preparedReference.initialStorage : null;
+            carryoverLabel.hidden = carryover === null;
+            carryoverLabel.textContent = carryover === null ? '' : 'Чаша на 1 січ.: ' + fmt(carryover) + ' м³';
+            if (carryover !== null) carryoverLabel.title = 'Залишок після грудня попереднього року за оптимальним комп’ютерним розрахунком';
+            else carryoverLabel.removeAttribute('title');
+          }
+        });
+        $('#rain-factor-note').textContent = prepared ? fmt(Number(controls.rainMultiplier.value), 1) : '—';
+      }
+      function resetSceneIllustration() {
+        if (sceneTransitionTimer) clearTimeout(sceneTransitionTimer);
+        sceneTransitionTimer = null;
+        sceneVisualKey = 'healthy';
+        orchardDroughtOccurred = false;
+        riverbankDroughtOccurred = false;
+        riverbankFloodingOccurred = false;
+        orchardCompletelyDry = false;
+        damCompletelyDry = false;
+        const warning = $('#ecosystem-warning');
+        warning.classList.remove('is-visible');
+        warning.setAttribute('aria-hidden', 'true');
+        const scene = $('.scene-wrap');
+        scene.classList.remove('scene-transition-from', 'scene-transition-to');
+        scene.classList.remove('has-dry-river-overlay');
+        scene.classList.remove('has-orchard-drought-overlay');
+        $('#scene-transition-from').src = sceneAssets.healthy;
+        $('#scene-transition-to').src = sceneAssets.healthy;
+        $('#scene-orchard-overlay').src = sceneAssets.gardenHalfRiver;
+      }
+      function updateSceneIllustration(durationMs = 650) {
+        let targetKey = 'healthy';
+        const showDryRiverOverlay = riverbankDroughtOccurred && !damCompletelyDry;
+        const scene = $('.scene-wrap');
+        scene.classList.toggle('has-dry-river-overlay', showDryRiverOverlay);
+        const showOrchardDroughtOverlay = damCompletelyDry && orchardDroughtOccurred;
+        scene.classList.toggle('has-orchard-drought-overlay', showOrchardDroughtOverlay);
+        if (showOrchardDroughtOverlay) {
+          const orchardOverlayKey = orchardCompletelyDry
+            ? (riverbankDroughtOccurred ? 'gardenAllRiver' : 'gardenAll')
+            : (riverbankDroughtOccurred ? 'gardenHalfRiver' : 'gardenHalf');
+          $('#scene-orchard-overlay').src = sceneAssets[orchardOverlayKey];
+        }
+        if (damCompletelyDry) targetKey = 'dryDam';
+        else if (orchardCompletelyDry) targetKey = riverbankDroughtOccurred ? 'gardenAllRiver' : 'gardenAll';
+        else if (orchardDroughtOccurred) targetKey = riverbankDroughtOccurred ? 'gardenHalfRiver' : 'gardenHalf';
+        else if (riverbankDroughtOccurred) targetKey = 'riverOnly';
+        else if (riverbankFloodingOccurred) targetKey = 'riverbankFlooded';
+        if (targetKey === sceneVisualKey) return;
+        if (sceneTransitionTimer) clearTimeout(sceneTransitionTimer);
+        const fromLayer = $('#scene-transition-from');
+        const toLayer = $('#scene-transition-to');
+        const firstFrame = sceneVisualKey === 'healthy'
+          ? (riverbankFloodingOccurred ? sceneAssets.healthy : riverbankDroughtOccurred ? sceneAssets.riverFirst : sceneAssets.gardenFirst)
+          : sceneAssets[sceneVisualKey];
+        fromLayer.src = firstFrame;
+        toLayer.src = sceneAssets[targetKey];
+        const fadeDuration = Math.max(500, durationMs);
+        const firstFrameDuration = Math.min(180, Math.floor(fadeDuration / 4));
+        const finalFrameDuration = fadeDuration - firstFrameDuration;
+        fromLayer.style.transitionDuration = '0ms';
+        toLayer.style.transitionDuration = finalFrameDuration + 'ms';
+        scene.classList.remove('scene-transition-from', 'scene-transition-to');
+        void scene.offsetWidth;
+        scene.classList.add('scene-transition-from');
+        sceneVisualKey = targetKey;
+        sceneTransitionTimer = setTimeout(() => {
+          fromLayer.style.transitionDuration = finalFrameDuration + 'ms';
+          scene.classList.remove('scene-transition-from');
+          scene.classList.add('scene-transition-to');
+          sceneTransitionTimer = null;
+        }, firstFrameDuration);
+      }
+      function prepareData({ randomize = true, clearTreeCount = true } = {}) {
+        if (running) return;
+        resetSceneIllustration();
+        if (randomize) computerTestMode = false;
+        if (randomize) {
+          assignRandomScenario();
+          resetProjectSliders();
+        }
+        else if (clearTreeCount) controls.treeCount.value = '';
+        prepared = false;
+        preparedReference = null;
+        simulationConsumed = false;
+        const multiplier = Number(controls.rainMultiplier.value) || 1;
+        inflow = baseInflow.map((value) => Math.round(value * multiplier));
+        const minimumRelease = Math.min(...inflow);
+        minimumMonthlyInflow = minimumRelease;
+        const maximumRelease = Math.max(48000, Math.ceil(Math.max(...inflow) / 1000) * 1000);
+        controls.release.min = '0';
+        controls.release.max = String(maximumRelease);
+        controls.releaseExact.min = '0';
+        controls.releaseExact.max = String(maximumRelease);
+        if (Number(controls.release.value) > maximumRelease) controls.release.value = String(maximumRelease);
+        $('#release-min-label').textContent = '0 м³';
+        $('#release-max-label').textContent = fmt(maximumRelease) + ' м³';
+        const referenceBase = Object.assign({}, getState(), { treeCount: theoreticalTrees(), release: minimumRelease, mode: 'battery' });
+        const referenceOptimum = findOptimalDam(referenceBase);
+        const referenceState = makeBenchmarkState(referenceBase, referenceOptimum);
+        const referenceStartingStorage = Number.isFinite(referenceState.planningInitialStorage) ? referenceState.planningInitialStorage : referenceOptimum.initialStorage;
+        const roundedReferenceOutcome = runWaterYear(referenceState, false, referenceOptimum.length, referenceOptimum.height, referenceStartingStorage);
+        const decemberCarryover = roundedReferenceOutcome.months[11].storage;
+        preparedReference = {
+          optimum: referenceOptimum,
+          state: referenceState,
+          initialStorage: decemberCarryover,
+          cyclicFeasible: referenceState.planningFeasible ?? referenceOptimum.cyclicFeasible
+        };
+        prepared = true;
+        updateMonthInflows();
+        updateAll();
+        $('#prepare-status').textContent = (computerTestMode ? 'Комп’ютерні дані тесту готові. ' : 'Дані готові: ') + fmt(areaHectares()) + ' га · ' + cropData().label + ' · опади ×' + fmt(multiplier, 1) + '. Залишок за грудень оптимального розрахунку, перенесений на 1 січня: ' + fmt(preparedReference.initialStorage) + ' м³.' + (computerTestMode ? ' Можна змінити параметри й натиснути «Запустити симуляцію».' : '');
+        updateSimulationAction();
+        saveState();
+      }
+      function invalidatePreparedData() {
+        prepared = false;
+        preparedReference = null;
+        computerTestMode = false;
+        $('#prepare-status').textContent = 'Параметри завдання буде випадково підготовлено після натискання кнопки.';
+        updateSimulationAction();
+        updateMonthInflows();
+      }
+      function maxWaterPerMonth(st, monthIndex, pipeMm, useIdeal = false) {
+        const demandDay = requiredDailyWater(st);
+        const pump = useIdeal ? requiredPump(st) : st.pump;
+        const solar = useIdeal ? requiredSolar(st) : st.solar;
+        const battery = useIdeal ? requiredBattery(st) : st.battery;
+        let energyDaily;
+        const activeMode = st.mode || mode;
+        if (activeMode === 'day') energyDaily = Math.min(pump, solar) * 12;
+        else {
+          const dayPower = Math.min(pump, solar);
+          const dayEnergy = dayPower * 12;
+          const surplusForCharge = Math.max(0, (solar - dayPower) * 12);
+          const nightEnergy = Math.min(battery, pump * 12, surplusForCharge);
+          energyDaily = dayEnergy + nightEnergy;
+        }
+        const pumpWater = useIdeal ? demandDay * 30 : energyDaily / energyPerM3 * 30;
+        const qPipe = Math.PI * Math.pow(pipeMm / 2000, 2) * pipeVelocity;
+        const pipeHours = activeMode === 'day' ? 12 : 24;
+        const pipeWater = useIdeal ? demandDay * 30 : qPipe * 3600 * pipeHours * 30;
+        const operatingHours = pump > 0 ? clamp(energyDaily / pump, 0, activeMode === 'day' ? 12 : 24) : 0;
+        return { demandDay, demand: demandDay * 30, maxPumpWater: pumpWater, maxPipeWater: pipeWater, operatingHours };
+      }
+      function equipmentWaterLimit(st, monthIndex = 0, pipeMm = st.pipe, useIdeal = false) {
+        const capacity = maxWaterPerMonth(st, monthIndex, pipeMm, useIdeal);
+        return Math.min(capacity.maxPumpWater, capacity.maxPipeWater);
+      }
+      function runWaterYear(st, useIdeal = false, damLength = st.length, damHeight = st.height, startingStorage = null) {
+        const total = Math.max(0, st.treeCount);
+        const inBasin = Math.min(total, Math.floor((2 * damLength) / cropData(st).spacing));
+        const basinCapacity = Math.PI * damHeight * damHeight / 2 * damLength;
+        let living = total;
+        const initialStorage = startingStorage === null ? basinCapacity : clamp(startingStorage, 0, basinCapacity);
+        let storage = initialStorage;
+        let riverbankDroughtDeathsRecorded = false;
+        const pipe = useIdeal ? requiredPipe(st) : st.pipe;
+        const monthData = [];
+        for (let i = 0; i < 12; i += 1) {
+          const aliveAtStart = living;
+          const riverAvailable = storage + inflow[i];
+          const availableForIrrigation = Math.max(0, riverAvailable);
+          const needs = maxWaterPerMonth(st, i, pipe, useIdeal);
+          // Потреба живих дерев визначає втрати; фактичну подачу обмежують лише обладнання та доступна вода.
+          const currentNeed = needs.demand * (total > 0 ? living / total : 0);
+          const pumpLimit = needs.maxPumpWater;
+          const pipeLimit = needs.maxPipeWater;
+          const equipmentLimit = equipmentWaterLimit(st, i, pipe, useIdeal);
+          const waterUsed = Math.min(availableForIrrigation, equipmentLimit);
+          const shortage = waterUsed + 0.000001 < currentNeed;
+          let reason = '';
+          if (shortage) {
+            if (availableForIrrigation <= pumpLimit && availableForIrrigation <= pipeLimit) reason = 'У чаші не вистачило води';
+            else if (pumpLimit <= pipeLimit && pumpLimit <= availableForIrrigation) reason = 'Обмеження насоса або енергії';
+            else if (pipeLimit <= availableForIrrigation) reason = 'Труба обмежила подачу';
+            else reason = 'Подача нижча за місячну потребу';
+          }
+          const coverage = currentNeed > 0 ? Math.min(1, waterUsed / currentNeed) : 1;
+          // Спочатку насос забирає воду; у річку надходить лише фактичний залишок після поливу.
+          const remainingAfterIrrigation = Math.max(0, riverAvailable - waterUsed);
+          const downstream = Math.min(remainingAfterIrrigation, st.release);
+          const afterWater = Math.min(living, Math.floor(living * coverage + 1e-9));
+          const droughtDeaths = Math.max(0, living - afterWater);
+          const afterCrowding = Math.min(afterWater, theoreticalTrees(st.crop));
+          const crowdingDeaths = Math.max(0, afterWater - afterCrowding);
+          // Втрати дерев заплави фіксуються окремо й не зменшують кількість дерев саду.
+          const downstreamDeaths = downstream <= 0.000001 && !riverbankDroughtDeathsRecorded ? inBasin : 0;
+          if (downstreamDeaths > 0) riverbankDroughtDeathsRecorded = true;
+          living = afterCrowding;
+          const remainingWater = Math.max(0, remainingAfterIrrigation - downstream);
+          const overflow = Math.max(0, remainingWater - basinCapacity);
+          storage = Math.min(basinCapacity, remainingWater);
+          const damFloodDeaths = i === 0 ? inBasin : 0;
+          monthData.push({ month: months[i], inflow: inflow[i], downstream, overflow, used: waterUsed, equipmentLimit, need: currentNeed, storage, aliveAtStart, alive: living, inBasin, droughtDeaths, crowdingDeaths, downstreamDeaths, damFloodDeaths, reason });
+        }
+        return { total, inBasin, final: living, capacity: basinCapacity, initialStorage, months: monthData };
+      }
+      function makeCyclicWaterPlan(st, damLength = st.length, damHeight = st.height, treeCount = st.treeCount, monthlyNeedsOverride = null) {
+        const capacity = Math.PI * damHeight * damHeight / 2 * damLength;
+        // Комп’ютерний орієнтир враховує екологічний запас у розрахунку чаші та початкового залишку.
+        // runWaterYear навмисно не обмежує водозабір учня цим запасом.
+        const ecologicalReserve = minimumMonthlyInflow;
+        const planState = Object.assign({}, st, { treeCount });
+        const monthlyNeeds = monthlyNeedsOverride || inflow.map((_, i) => requiredDailyWater(planState) * days[i] * demandFactor[i]);
+        const totalNeed = monthlyNeeds.reduce((sum, value) => sum + value, 0);
+        const averageInflow = inflow.reduce((sum, value) => sum + value, 0) / 12;
+        const release = averageInflow - totalNeed / 12;
+        const minimumRelease = minimumMonthlyInflow;
+        const maximumRelease = Number(controls.release.max) || Math.max(...inflow);
+        if (release < minimumRelease - 0.000001 || release > maximumRelease + 0.000001) {
+          return { feasible: false, release: clamp(release, minimumRelease, maximumRelease), requiredCapacity: Infinity, initialStorage: capacity, capacity, reason: 'річного притоку недостатньо для вибраного скиду та повного поливу' };
+        }
+        let cumulative = 0;
+        let lowestStart = 0;
+        let highestCumulative = 0;
+        for (let i = 0; i < 12; i += 1) {
+          lowestStart = Math.max(lowestStart, release + monthlyNeeds[i] - inflow[i] - cumulative);
+          cumulative += inflow[i] - release - monthlyNeeds[i];
+          lowestStart = Math.max(lowestStart, -cumulative);
+          highestCumulative = Math.max(highestCumulative, cumulative);
+        }
+        const seasonalStartingStorage = Math.max(0, lowestStart);
+        const requiredCapacity = ecologicalReserve + seasonalStartingStorage + highestCumulative;
+        const initialStorage = ecologicalReserve + seasonalStartingStorage;
+        const balanced = Math.abs(cumulative) <= 0.01;
+        const feasible = balanced && initialStorage <= capacity + 0.01 && requiredCapacity <= capacity + 0.01;
+        return { feasible, release, requiredCapacity, initialStorage: Math.min(capacity, initialStorage), capacity, reason: feasible ? '' : 'місткості чаші недостатньо для сезонного перенесення води' };
+      }
+      function findMaximumSafeRelease(st) {
+        const effectiveTrees = Math.min(st.treeCount, theoreticalTrees(st.crop));
+        const equipmentThroughput = inflow.map((_, i) => equipmentWaterLimit(st, i, st.pipe, false));
+        return makeCyclicWaterPlan(st, st.length, st.height, effectiveTrees, equipmentThroughput);
+      }
+      function findOptimalDam(st) {
+        let best = null;
+        const maxTrees = theoreticalTrees(st.crop);
+        const testCyclicPlan = (length, height, treeCount) => {
+          const candidateState = Object.assign({}, st, { treeCount });
+          const plan = makeCyclicWaterPlan(candidateState, length, height, treeCount);
+          if (!plan.feasible) return null;
+          const stateWithRelease = Object.assign({}, candidateState, { release: plan.release });
+          const outcome = runWaterYear(stateWithRelease, true, length, height, plan.initialStorage);
+          if (outcome.final !== treeCount || outcome.months.some((month) => month.overflow > 0.000001)) return null;
+          return { plan, outcome };
+        };
+        for (let h = 1; h <= 10; h += 1) {
+          let low = 0;
+          let high = maxTrees;
+          let viableTrees = -1;
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (testCyclicPlan(2000, h, mid)) {
+              viableTrees = mid;
+              low = mid + 1;
+            } else high = mid - 1;
+          }
+          if (viableTrees < 0) continue;
+
+          // For a fixed height, storage capacity grows monotonically with length.
+          // Find the shortest 10 m step that supports the maximum viable tree count.
+          let leftStep = 0;
+          let rightStep = 200;
+          let viableLength = 2000;
+          let viableResult = testCyclicPlan(viableLength, h, viableTrees);
+          while (leftStep <= rightStep) {
+            const middleStep = Math.floor((leftStep + rightStep) / 2);
+            const length = middleStep * 10;
+            const result = testCyclicPlan(length, h, viableTrees);
+            if (result) {
+              viableLength = length;
+              viableResult = result;
+              rightStep = middleStep - 1;
+            } else leftStep = middleStep + 1;
+          }
+          if (!viableResult) continue;
+
+          const candidate = { length: viableLength, height: h, treeCount: viableTrees, outcome: viableResult.outcome };
+          candidate.release = viableResult.plan.release;
+          candidate.initialStorage = viableResult.plan.initialStorage;
+          candidate.requiredCapacity = viableResult.plan.requiredCapacity;
+          candidate.cyclicFeasible = true;
+          const candidateDamCost = viableLength + h * 100;
+          const bestDamCost = best ? best.length + best.height * 100 : Infinity;
+          const cheaperDam = best && candidateDamCost < bestDamCost - 1e-6;
+          const sameCost = best && Math.abs(candidateDamCost - bestDamCost) <= 1e-6;
+          const fewerFlooded = sameCost && candidate.outcome.inBasin < best.outcome.inBasin;
+          const sameFlooded = sameCost && candidate.outcome.inBasin === best.outcome.inBasin;
+          const smallerBasin = sameFlooded && candidate.outcome.capacity < best.outcome.capacity - 1e-6;
+          if (!best || candidate.treeCount > best.treeCount || (candidate.treeCount === best.treeCount && (cheaperDam || fewerFlooded || smallerBasin))) best = candidate;
+        }
+        if (best) return best;
+
+        let fallback = null;
+        const minimumRelease = minimumMonthlyInflow;
+        const testFallback = (length, height, treeCount) => {
+          const candidateState = Object.assign({}, st, { treeCount, release: minimumRelease });
+          const outcome = runWaterYear(candidateState, true, length, height);
+          return outcome.final === treeCount ? outcome : null;
+        };
+        for (let h = 1; h <= 10; h += 1) {
+          let low = 0;
+          let high = maxTrees;
+          let viableTrees = -1;
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (testFallback(2000, h, mid)) { viableTrees = mid; low = mid + 1; }
+            else high = mid - 1;
+          }
+          if (viableTrees < 0) continue;
+
+          // The fallback also uses the shortest 10 m length that avoids tree losses.
+          let leftStep = 0;
+          let rightStep = 200;
+          let viableLength = 2000;
+          let viableOutcome = testFallback(viableLength, h, viableTrees);
+          while (leftStep <= rightStep) {
+            const middleStep = Math.floor((leftStep + rightStep) / 2);
+            const length = middleStep * 10;
+            const outcome = testFallback(length, h, viableTrees);
+            if (outcome) { viableLength = length; viableOutcome = outcome; rightStep = middleStep - 1; }
+            else leftStep = middleStep + 1;
+          }
+          if (!viableOutcome) continue;
+          const candidate = { length: viableLength, height: h, treeCount: viableTrees, outcome: viableOutcome, release: minimumRelease, initialStorage: viableOutcome.capacity, requiredCapacity: Infinity, cyclicFeasible: false };
+          const cost = viableLength + h * 100;
+          const fallbackCost = fallback ? fallback.length + fallback.height * 100 : Infinity;
+          if (!fallback || candidate.treeCount > fallback.treeCount || (candidate.treeCount === fallback.treeCount && cost < fallbackCost)) fallback = candidate;
+        }
+        return fallback;
+      }
+      const creditRates = { damLengthPerMetre: 1, damHeightPerMetre: 100, pumpPerKW: 100, pipePerMM: 5, solarPerKW: 100, batteryPerKWh: 10, seedling: 1 };
+      function projectCredits(st) {
+        const damLength = st.length * creditRates.damLengthPerMetre;
+        const damHeight = st.height * creditRates.damHeightPerMetre;
+        const pump = st.pump * creditRates.pumpPerKW;
+        const pipe = st.pipe * creditRates.pipePerMM;
+        const solar = st.solar * creditRates.solarPerKW;
+        const battery = st.battery * creditRates.batteryPerKWh;
+        const seedlings = st.treeCount * creditRates.seedling;
+        const dam = damLength + damHeight;
+        return { damLength, damHeight, dam, pump, pipe, solar, battery, seedlings, total: dam + pump + pipe + solar + battery + seedlings };
+      }
+      function makeBenchmarkState(base, optimum) {
+        const st = Object.assign({}, base, { treeCount: optimum.treeCount, length: optimum.length, height: optimum.height, release: largestSafeReleaseInteger(optimum.release), mode: 'battery' });
+        const pump = Math.ceil(requiredPump(st) * 10 - 1e-9) / 10;
+        st.pump = pump;
+        st.pipe = Math.ceil(requiredPipe(st));
+        st.solar = Math.ceil(pump * 2 * 10 - 1e-9) / 10;
+        st.battery = Math.ceil(pump * 12 * 2 - 1e-9) / 2;
+        // Replan after rounding equipment: the rounded pump/pipe may deliver more than crop demand.
+        const actualEquipmentThroughput = inflow.map((_, i) => equipmentWaterLimit(st, i, st.pipe, false));
+        const actualPlan = makeCyclicWaterPlan(st, st.length, st.height, st.treeCount, actualEquipmentThroughput);
+        st.planningFeasible = actualPlan.feasible;
+        optimum.roundedCyclicFeasible = actualPlan.feasible;
+        if (actualPlan.feasible) {
+          st.release = largestSafeReleaseInteger(actualPlan.release);
+          st.planningInitialStorage = actualPlan.initialStorage;
+          st.planningRequiredCapacity = actualPlan.requiredCapacity;
+        }
+        return st;
+      }
+      function calculateCreditScore(st, student, benchmark, optimum, safeRelease) {
+        const studentCost = projectCredits(st);
+        const benchmarkCost = projectCredits(benchmark);
+        const benchmarkTrees = optimum.final;
+        const costPerTree = benchmarkTrees > 0 ? benchmarkCost.total / benchmarkTrees : 0;
+        const creditOverrun = Math.max(0, studentCost.total - benchmarkCost.total);
+        const equivalentLostTrees = costPerTree > 0 ? creditOverrun / costPerTree : 0;
+        const survivalRatio = benchmarkTrees > 0 ? clamp(student.final / benchmarkTrees, 0, 1) : 0;
+        const yieldPoints = benchmarkTrees > 0 ? 6 * clamp(student.final / benchmarkTrees, 0, 1) : 0;
+        const extraFlooded = Math.max(0, student.inBasin - optimum.inBasin);
+        const damCapacityPoints = optimum.capacity > 0 ? clamp(student.capacity / optimum.capacity, 0, 1) * survivalRatio : 0;
+        const maxFloodableTrees = Math.min(theoreticalTrees(st.crop), Math.floor((2 * 2000) / cropData(st).spacing));
+        const floodCapacity = Math.max(1, maxFloodableTrees);
+        const remainingFloodCapacity = Math.max(1, floodCapacity - optimum.inBasin);
+        const floodPreservationPoints = clamp(1 - extraFlooded / remainingFloodCapacity, 0, 1) * survivalRatio;
+        const equipmentPoints = (provided, required, weight) => weight * (required > 0 ? clamp(provided / required, 0, 1) : 1) * survivalRatio;
+        const minimumRelease = minimumMonthlyInflow;
+        const maximumSafeRelease = safeRelease ? largestSafeReleaseInteger(safeRelease.release) : minimumRelease;
+        const releaseTarget = Math.max(minimumRelease, maximumSafeRelease);
+        const releaseScoringRange = maximumSafeRelease - minimumRelease - monthlyWaterTolerance;
+        const releasePoints = releaseTarget > minimumRelease
+          ? (releaseScoringRange > 0 ? clamp((st.release - minimumRelease) / releaseScoringRange, 0, 1) : 1) * survivalRatio
+          : survivalRatio;
+        const overflowVolume = student.months.reduce((sum, month) => sum + month.overflow, 0);
+        const maximumMonthlyOverflow = Math.max(0, ...student.months.map((month) => month.overflow));
+
+
+        const releasePenalty = Math.abs(maximumSafeRelease - st.release) > monthlyWaterTolerance ? 1 : 0;
+        const rows = [
+          ['Вирощені дерева', yieldPoints, 6],
+          ['Місткість греблі', damCapacityPoints, 1],
+          ['Збереження дерев від затоплення', floodPreservationPoints, 1],
+          ['Насос', equipmentPoints(st.pump, requiredPump(st), 0.75), 0.75],
+          ['Магістральна труба', equipmentPoints(st.pipe, requiredPipe(st), 0.75), 0.75],
+          ['Сонячні панелі', equipmentPoints(st.solar, requiredSolar(st), 0.75), 0.75],
+          ['Акумулятор', equipmentPoints(st.battery, requiredBattery(st), 0.75), 0.75],
+          ['Скид води понад мінімум', releasePoints, 1]
+        ];
+        const baseScore = rows.reduce((sum, row) => sum + row[1], 0);
+        const economicPenalty = benchmarkTrees > 0 ? 6 * equivalentLostTrees / benchmarkTrees : 0;
+        const finalScore = clamp(baseScore - economicPenalty - releasePenalty, 0, 12);
+        return { studentCost, benchmarkCost, benchmarkTrees, grownTrees: student.final, selectedRelease: st.release, costPerTree, creditOverrun, equivalentLostTrees, extraFlooded, yieldPoints, rows, baseScore, economicPenalty, overflowVolume, maximumMonthlyOverflow, releasePenalty, maximumSafeRelease, finalScore, survivalRatio };
+      }
+      function renderCreditTables(score, benchmarkScore) {
+        const names = [
+          ['Довжина греблі', 'damLength'], ['Висота греблі', 'damHeight'], ['Гребля загалом', 'dam'],
+          ['Насос', 'pump'], ['Труба на 100 м', 'pipe'], ['Сонячні панелі', 'solar'],
+          ['Акумулятор', 'battery'], ['Саджанці', 'seedlings'], ['Усього', 'total']
+        ];
+        const studentUnitCost = score.grownTrees > 0 ? score.studentCost.total / score.grownTrees : null;
+        const benchmarkUnitCost = score.benchmarkTrees > 0 ? score.benchmarkCost.total / score.benchmarkTrees : null;
+        const unitDelta = studentUnitCost !== null && benchmarkUnitCost !== null ? studentUnitCost - benchmarkUnitCost : null;
+        $('#credit-cost-table').innerHTML = '<thead><tr><th>Стаття витрат</th><th>Проєкт учня</th><th>Комп’ютерний орієнтир</th><th>Різниця</th></tr></thead><tbody>' + names.map(([label, key]) => {
+          const student = score.studentCost[key];
+          const benchmark = score.benchmarkCost[key];
+          return '<tr><td>' + label + '</td><td>' + fmt(student) + '</td><td>' + fmt(benchmark) + '</td><td>' + (student > benchmark ? '+' : '') + fmt(student - benchmark) + '</td></tr>';
+        }).join('') + '<tr><td><strong>Собівартість одного вирощеного дерева</strong></td><td>' + (studentUnitCost === null ? '—' : fmt(studentUnitCost, 2) + ' кредиту/дерево') + '</td><td>' + (benchmarkUnitCost === null ? '—' : fmt(benchmarkUnitCost, 2) + ' кредиту/дерево') + '</td><td>' + (unitDelta === null ? '—' : (unitDelta > 0 ? '+' : '') + fmt(unitDelta, 2) + ' кредиту/дерево') + '</td></tr></tbody>';
+        const categoryRows = score.rows.map((row, i) => {
+          const benchmarkPoints = benchmarkScore.rows[i][1];
+          return '<tr><td>' + row[0] + '</td><td>' + fmt(row[1], 2) + '</td><td>' + fmt(benchmarkPoints, 2) + '</td></tr>';
+        }).join('');
+        const totalPenalty = score.economicPenalty + score.releasePenalty;
+        const benchmarkTotalPenalty = benchmarkScore.economicPenalty + benchmarkScore.releasePenalty;
+        const economicPenaltyLabel = (amount) => amount > 0 ? '−' + fmt(amount, 2) : fmt(0, 2);
+        const totalPenaltyLabel = (amount) => amount > 0 ? '−' + fmt(amount, 2) : fmt(0, 2);
+        $('#credit-score-table').innerHTML = '<thead><tr><th>Категорія</th><th>Проєкт учня</th><th>Комп’ютерний орієнтир</th></tr></thead><tbody>' + categoryRows +
+          '<tr><td><strong>Базова сума</strong></td><td><strong>' + fmt(score.baseScore, 2) + '</strong></td><td><strong>' + fmt(benchmarkScore.baseScore, 2) + '</strong></td></tr>' +
+           '<tr class="economic-penalty"><td>Економічний штраф</td><td>' + economicPenaltyLabel(score.economicPenalty) + '</td><td>' + economicPenaltyLabel(benchmarkScore.economicPenalty) + '</td></tr>' +
+             '<tr class="economic-penalty"><td>Скид</td><td>' + economicPenaltyLabel(score.releasePenalty) + '</td><td>' + economicPenaltyLabel(benchmarkScore.releasePenalty) + '</td></tr>' +
+            '<tr class="economic-penalty"><td><strong>Усього відрахувань</strong></td><td><strong>' + totalPenaltyLabel(totalPenalty) + '</strong></td><td><strong>' + totalPenaltyLabel(benchmarkTotalPenalty) + '</strong></td></tr>' +
+          '<tr class="final-score"><td>Підсумкова оцінка</td><td>' + fmt(score.finalScore, 2) + '</td><td>' + fmt(benchmarkScore.finalScore, 2) + '</td></tr></tbody>';
+      }
+      function renderResults(student, optimum, st, idealState, benchmarkOutcome, score, benchmarkScore) {
+        const noFeasibleBenchmark = !(optimum.roundedCyclicFeasible ?? optimum.cyclicFeasible);
+        const studentLimits = maxWaterPerMonth(st, 0, st.pipe, false);
+        const benchmarkLimits = maxWaterPerMonth(idealState, 0, idealState.pipe, false);
+        $('#result-sub').textContent = 'Посаджено ' + fmt(st.treeCount) + ' · наприкінці року залишилося ' + fmt(student.final) + (noFeasibleBenchmark ? ' · стійкого орієнтира без переливу не знайдено' : '');
+        const rows = [
+          ['Посадка дерев на ' + fmt(st.area) + ' га', fmt(st.treeCount), fmt(optimum.treeCount)],
+          ['Максимальна місячна подача насоса', fmt(studentLimits.maxPumpWater) + ' м³', fmt(benchmarkLimits.maxPumpWater) + ' м³'],
+          ['Місячна пропускна здатність труби', fmt(studentLimits.maxPipeWater) + ' м³', fmt(benchmarkLimits.maxPipeWater) + ' м³'],
+          ['Довжина водосховища', fmt(st.length) + ' м', fmt(optimum.length) + ' м'],
+          ['Висота греблі', fmt(st.height) + ' м', fmt(optimum.height) + ' м'],
+          ['Дерев у зоні затоплення греблею', fmt(student.inBasin), fmt(benchmarkOutcome.inBasin)],
+          ['Об’єм чаші', fmt(student.capacity) + ' м³', fmt(optimum.outcome.capacity) + ' м³'],
+          ['Запас на початок січня з грудня минулого року', fmt(student.initialStorage) + ' м³ · ' + (student.carryoverClamped ? 'чаша менша за розрахунковий залишок' : 'грудневий залишок орієнтира'), fmt(benchmarkOutcome.initialStorage) + ' м³ · грудневий залишок орієнтира'],
+          ['Залишок після грудня цього року', fmt(student.months[11].storage) + ' м³', fmt(benchmarkOutcome.months[11].storage) + ' м³' + (noFeasibleBenchmark ? ' · стійкого перенесення немає' : ' · перенесення на січень')],
+          ['Постійний скид у річку', fmt(st.release) + ' м³/міс.', fmt(largestSafeReleaseInteger(idealState.release)) + ' м³/міс.'],
+          ['Робота насоса', fmt(studentLimits.operatingHours, 1) + ' год/добу', fmt(benchmarkLimits.operatingHours, 1) + ' год/добу'],
+          ['Внутрішній діаметр труби', fmt(st.pipe) + ' мм (мінімум ' + fmt(Math.ceil(requiredPipe(st))) + ' мм)', fmt(Math.ceil(requiredPipe(idealState))) + ' мм · ' + fmt(optimum.treeCount) + ' дерев, 24 год'],
+          ['Потужність насоса / подача', fmt(st.pump, 1) + ' кВт / ' + fmt(pumpFlowLitresPerHour(st.pump)) + ' л/год', fmt(idealState.pump, 1) + ' кВт / ' + fmt(pumpFlowLitresPerHour(idealState.pump)) + ' л/год'],
+          ['Сонячні панелі', fmt(st.solar, 1) + ' кВт', fmt(idealState.solar, 1) + ' кВт'],
+          ['Ємність акумулятора', fmt(st.battery, 1) + ' кВт·год', fmt(idealState.battery, 1) + ' кВт·год'],
+          ['Дерев наприкінці року', fmt(student.final), fmt(optimum.outcome.final)]
+        ];
+        $('#compare-table').innerHTML = '<thead><tr><th>Параметр</th><th>Проєкт учня</th><th>Комп’ютерний орієнтир</th></tr></thead><tbody>' + rows.map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('') + '</tbody>';
+        renderCreditTables(score, benchmarkScore);
+        $('#month-report').innerHTML = '<colgroup><col><col><col><col><col><col><col><col><col></colgroup><thead><tr><th rowspan="2">Місяць</th><th rowspan="2">Притік<br>річки, м³</th><th rowspan="2">Скид<br>у річку, м³</th><th rowspan="2">Подача обладнання<br>/ факт, м³</th><th rowspan="2">Залишок<br>у чаші, м³</th><th rowspan="2">Дерева:<br>початок → кінець</th><th colspan="3">Втрати дерев, шт.</th></tr><tr><th title="Втрати через нестачу доступної води, потужності насоса чи енергії або пропускної здатності труби">Брак<br>поливу</th><th title="Дерева, посаджені понад розрахункову місткість ділянки за вибраного кроку садіння">Понад місткість<br>саду</th><th title="Втрати дерев у заплаві через пересихання русла або затоплення під час спорудження греблі">У заплаві<br>річки</th></tr></thead><tbody>' + student.months.map((m) => '<tr><td>' + m.month + '</td><td>' + fmt(m.inflow) + '</td><td>' + fmt(m.downstream) + (m.overflow > 0 ? '<br><small>перелив ' + fmt(m.overflow) + ' м³</small>' : '') + '</td><td>' + fmt(m.equipmentLimit) + ' / ' + fmt(m.used) + '</td><td>' + fmt(m.storage) + '</td><td>' + fmt(m.aliveAtStart) + ' → ' + fmt(m.alive) + '</td><td>' + fmt(m.droughtDeaths) + '</td><td>' + fmt(m.crowdingDeaths) + '</td><td>' + fmt(m.downstreamDeaths + m.damFloodDeaths) + '</td></tr>').join('') + '</tbody>';
+        $('#results').hidden = false;
+      }
+      function finishSimulation(st, result, optimum, idealState, benchmarkOutcome, studentSafeRelease, benchmarkSafeRelease) {
+        const score = calculateCreditScore(st, result, idealState, benchmarkOutcome, studentSafeRelease);
+        const benchmarkScore = calculateCreditScore(idealState, benchmarkOutcome, idealState, benchmarkOutcome, benchmarkSafeRelease);
+        lastCompletedResults = { result, optimum, st, idealState, benchmarkOutcome, score, benchmarkScore };
+        renderResults(result, optimum, st, idealState, benchmarkOutcome, score, benchmarkScore);
+        $('#quick-tree-count').textContent = fmt(result.final);
+        $('#quick-score').textContent = fmt(score.finalScore, 1);
+        $('#sim-status').textContent = 'Рік завершено · залишилося ' + fmt(result.final) + ' дерев';
+        running = false;
+        lockInputs(false);
+      }
+      function startSimulation() {
+        if (running) return;
+        if (simulationConsumed) {
+          $('#sim-status').textContent = 'Підготуйте нове випадкове завдання перед наступною симуляцією.';
+          return;
+        }
+        if (!prepared) {
+          $('#sim-status').textContent = 'Спочатку натисніть «Підготовка симуляції»';
+          $('#run-simulation').focus();
+          return;
+        }
+        if (!preparedReference) {
+          $('#sim-status').textContent = 'Не знайдено підготовлений комп’ютерний розрахунок. Натисніть «Підготовка симуляції» ще раз.';
+          $('#run-simulation').focus();
+          return;
+        }
+        const rawCount = controls.treeCount.value.trim();
+        const st = getState();
+        if (st.treeCount < 1 || !Number.isSafeInteger(Number(rawCount))) {
+          $('#sim-status').textContent = 'Введіть цілу кількість дерев';
+          controls.treeCount.focus();
+          return;
+        }
+        simulationConsumed = true;
+        resetResults();
+        running = true;
+        const optimum = preparedReference.optimum;
+        const idealState = preparedReference.state;
+        const studentSafeRelease = findMaximumSafeRelease(st);
+        const studentCapacity = Math.PI * st.height * st.height / 2 * st.length;
+        const studentCarryoverClamped = studentCapacity + 0.01 < preparedReference.initialStorage;
+        const studentStartStorage = Math.min(studentCapacity, preparedReference.initialStorage);
+        const student = runWaterYear(st, false, st.length, st.height, studentStartStorage);
+        const gardenWillCompletelyDry = student.final === 0 && student.months.some((month) => month.droughtDeaths > 0);
+        const gardenTreesAllDead = student.final === 0;
+        const riverbankTreePopulation = Math.min(student.total, theoreticalTrees(st.crop), Math.floor((2 * 2000) / cropData(st).spacing));
+        const largestRiverbankLoss = Math.max(0, ...student.months.map((month) => Math.max(month.downstreamDeaths, month.damFloodDeaths)));
+        const riverbankTreesAllDead = riverbankTreePopulation > 0 && largestRiverbankLoss >= riverbankTreePopulation;
+        student.carryoverClamped = studentCarryoverClamped;
+        const benchmarkSafeRelease = { release: largestSafeReleaseInteger(idealState.release), initialStorage: preparedReference.initialStorage, requiredCapacity: idealState.planningRequiredCapacity ?? optimum.requiredCapacity, feasible: idealState.planningFeasible ?? optimum.cyclicFeasible };
+        idealState.release = benchmarkSafeRelease.release;
+        const benchmarkOutcome = runWaterYear(idealState, false, optimum.length, optimum.height, preparedReference.initialStorage);
+        lockInputs(true);
+        updateSimulationAction();
+        let index = 0;
+        const advance = () => {
+          const cells = root.querySelectorAll('.month');
+          cells.forEach((cell, i) => {
+            cell.classList.toggle('current', i === index);
+            if (i < index) cell.classList.add('complete');
+          });
+          const current = cells[index];
+          const monthResult = student.months[index];
+          if (monthResult.droughtDeaths > 0) orchardDroughtOccurred = true;
+          if (monthResult.downstream <= 0.000001) riverbankDroughtOccurred = true;
+          if (index === 0 && st.length >= 2000 && student.inBasin > 0) riverbankFloodingOccurred = true;
+          if (monthResult.droughtDeaths > 0 && gardenWillCompletelyDry) orchardCompletelyDry = true;
+          // Звіт показує цілі м³; залишок до 1 м³ вважаємо візуально порожньою чашею.
+          if (monthResult.storage <= visuallyEmptyDamThreshold) damCompletelyDry = true;
+          updateSceneIllustration(Math.max(500, (months.length - index - 1) * 650 + 500));
+          if (index === 11 && (gardenTreesAllDead || riverbankTreesAllDead || damCompletelyDry)) {
+            const warning = $('#ecosystem-warning');
+            warning.classList.add('is-visible');
+            warning.setAttribute('aria-hidden', 'false');
+          }
+          current.querySelector('.month-count').textContent = fmt(monthResult.aliveAtStart);
+          const reasonNode = current.querySelector('.month-reason');
+          let shortReason = '';
+          if (monthResult.reason === 'У чаші не вистачило води') shortReason = 'мало води';
+          else if (monthResult.reason === 'Обмеження насоса або енергії') shortReason = 'насос/енергія';
+          else if (monthResult.reason === 'Труба обмежила подачу') shortReason = 'труба';
+          else if (monthResult.downstreamDeaths > 0) shortReason = 'суха річка';
+          if (reasonNode) {
+            reasonNode.textContent = shortReason;
+            const details = [];
+            if (monthResult.damFloodDeaths > 0) details.push('Під час спорудження греблі загинуло ' + fmt(monthResult.damFloodDeaths) + ' пойменних дерев');
+            if (monthResult.downstreamDeaths > 0) details.push('Через нульовий фактичний скид загинуло ' + fmt(monthResult.downstreamDeaths) + ' дерев заплави');
+            if (monthResult.reason) details.push(monthResult.reason);
+            if (details.length) reasonNode.title = details.join('. ');
+            else reasonNode.removeAttribute('title');
+          }
+          if (monthResult.droughtDeaths > 0 || monthResult.crowdingDeaths > 0 || monthResult.downstreamDeaths > 0) current.classList.add('dry');
+          let status = months[index] + ' · на початок ' + fmt(monthResult.aliveAtStart) + ' дерев';
+
+          if (index === 0) status = months[index] + ' · посаджено ' + fmt(st.treeCount) + ' · на початок ' + fmt(monthResult.aliveAtStart);
+
+
+
+          $('#sim-status').textContent = status;
+          $('#progress-fill').style.width = (((index + 1) / 12) * 100) + '%';
+          index += 1;
+          if (index < 12) timer = setTimeout(advance, 650);
+          else timer = setTimeout(() => finishSimulation(st, student, optimum, idealState, benchmarkOutcome, studentSafeRelease, benchmarkSafeRelease), 500);
+        };
+        timer = setTimeout(advance, 350);
+      }
+      function prepareComputerTest() {
+        if (running) return;
+        controls.crop.value = 'palm';
+        controls.area.value = '10';
+        controls.rainMultiplier.value = '1';
+        controls.treeCount.value = '1000';
+        invalidatePreparedData();
+        computerTestMode = true;
+        updateAll();
+        prepareData({ randomize: false, clearTreeCount: false });
+        if (!preparedReference || !preparedReference.state) {
+          $('#sim-status').textContent = 'Не вдалося підготувати комп’ютерні параметри тесту.';
+          return;
+        }
+        applyState(preparedReference.state);
+        controls.treeCount.value = '1000';
+        updateAll();
+        $('#prepare-status').textContent = 'Комп’ютерні дані тесту готові. Можна змінити параметри й натиснути «Запустити симуляцію».';
+        $('#sim-status').textContent = 'Тест підготовлено · комп’ютерні параметри завантажено · очікує запуску';
+        saveState();
+      }
+      function handleSimulationAction() {
+        if (running) return;
+        if (!prepared || simulationConsumed) prepareData({ randomize: true });
+        else startSimulation();
+      }
+      window.OCEANUA_OASIS_REFRESH_LABELS = () => {
+        configureEnergyRanges();
+        configurePipeRange();
+        renderInputs();
+        updateMonthInflows();
+        updateSimulationAction();
+        if (lastCompletedResults) {
+          const { result, optimum, st, idealState, benchmarkOutcome, score, benchmarkScore } = lastCompletedResults;
+          renderResults(result, optimum, st, idealState, benchmarkOutcome, score, benchmarkScore);
+          $('#quick-tree-count').textContent = fmt(result.final);
+          $('#quick-score').textContent = fmt(score.finalScore, 1);
+          $('#sim-status').textContent = 'Рік завершено · залишилося ' + fmt(result.final) + ' дерев';
+        }
+      };
+      function placeSliderHelpAtRangeEnd() {
+        root.querySelectorAll('.range-card').forEach((card) => {
+          const help = card.querySelector('.label-line > .field-help');
+          const range = card.querySelector('input[type="range"]');
+          if (!help || !range) return;
+          if (range.id === 'river-release') {
+            const releaseControl = card.querySelector('.release-control');
+            if (releaseControl && help.parentElement !== releaseControl) releaseControl.append(help);
+            return;
+          }
+          const row = document.createElement('div');
+          row.className = 'range-slider-row';
+          range.parentElement.insertBefore(row, range);
+          row.append(range, help);
+        });
+      }
+      const lastQuizCorrectPosition = new WeakMap();
+      function shuffleMethodQuizzes() {
+        root.querySelectorAll('#student-method-dialog .method-quiz').forEach((quiz) => {
+          const list = quiz.querySelector('.quiz-options');
+          const feedback = quiz.querySelector('.quiz-feedback');
+          if (!list) return;
+          const options = [...list.querySelectorAll('.quiz-option')];
+          options.forEach((option) => {
+            option.disabled = false;
+            option.classList.remove('quiz-correct', 'quiz-wrong');
+            option.removeAttribute('aria-pressed');
+          });
+          if (feedback) { feedback.hidden = true; feedback.textContent = ''; }
+          for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [options[i], options[j]] = [options[j], options[i]];
+          }
+          let correctPosition = options.findIndex((option) => option.dataset.correct === 'true');
+          const previousPosition = lastQuizCorrectPosition.get(quiz);
+          if (correctPosition < 0) return;
+          if (options.length > 1 && correctPosition === previousPosition) {
+            const swapPosition = (previousPosition + 1 + Math.floor(Math.random() * (options.length - 1))) % options.length;
+            [options[correctPosition], options[swapPosition]] = [options[swapPosition], options[correctPosition]];
+            correctPosition = swapPosition;
+          }
+          options.forEach((option, index) => {
+            option.textContent = String.fromCharCode(65 + index) + '. ' + option.dataset.answerLabel;
+            list.append(option);
+          });
+          lastQuizCorrectPosition.set(quiz, correctPosition);
+        });
+      }
+      function openStudentMethod() {
+        const dialog = $('#student-method-dialog');
+        if (dialog && !dialog.open) { shuffleMethodQuizzes(); dialog.showModal(); }
+      }
+      function updateAll() {
+        mode = Number(controls.battery.value) > 0 ? 'battery' : 'day';
+        configurePipeRange();
+        renderInputs();
+        if (!running) resetResults();
+      }
+      configureEnergyRanges();
+      const saved = window.openai?.widgetState?.modelContent;
+      if (saved) applyState(saved);
+       else applyState({ crop: 'palm', treeCount: 0, length: 2000, height: 7, release: 0, pipe: 133, pump: 4.8, solar: 9.6, battery: 0, mode: 'day' });
+       controls.treeCount.value = '';
+      configurePipeRange();
+      renderInputs();
+      updateMonthInflows();
+      resetResults();
+      Object.values(controls).forEach((input) => {
+        if (input === controls.releaseExact) return;
+        if (input === controls.treeCount) {
+          input.addEventListener('input', () => { lastLocalEdit = Date.now(); updateAll(); });
+          input.addEventListener('change', () => { lastLocalEdit = Date.now(); saveState(); });
+          input.addEventListener('blur', () => { lastLocalEdit = Date.now(); saveState(); });
+        } else {
+          input.addEventListener('input', () => {
+            lastLocalEdit = Date.now();
+            if (input === controls.area || input === controls.rainMultiplier) {
+              if (prepared && computerTestMode) prepareData({ randomize: false, clearTreeCount: false });
+              else invalidatePreparedData();
+            }
+            updateAll();
+            saveState();
+          });
+        }
+      });
+      controls.releaseExact.addEventListener('change', () => {
+        const raw = controls.releaseExact.value;
+        const parsed = Number(raw);
+        const normalized = clamp(Number.isFinite(parsed) ? parsed : Number(controls.release.value), Number(controls.release.min), Number(controls.release.max));
+        controls.release.value = String(Math.trunc(normalized));
+        lastLocalEdit = Date.now();
+        controls.release.dispatchEvent(new Event('input', { bubbles: true }));
+        saveState();
+      });
+      document.addEventListener('keydown', (event) => {
+        const left = event.key === 'ArrowLeft' || event.keyCode === 37;
+        const right = event.key === 'ArrowRight' || event.keyCode === 39;
+        if ((!left && !right) || (event.target !== controls.release && event.target !== controls.releaseExact && document.activeElement !== controls.release && document.activeElement !== controls.releaseExact)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const step = 1;
+        const direction = right ? 1 : -1;
+        const currentValue = event.target === controls.releaseExact ? Number(controls.releaseExact.value) : Number(controls.release.value);
+        const next = clamp(Math.trunc(Number.isFinite(currentValue) ? currentValue : Number(controls.release.value)) + direction * step, Number(controls.release.min), Number(controls.release.max));
+        controls.release.value = String(next);
+        controls.releaseExact.value = String(next);
+        controls.release.dispatchEvent(new Event('input', { bubbles: true }));
+      }, true);
+      controls.crop.addEventListener('change', () => {
+        if (prepared && computerTestMode) prepareData({ randomize: false, clearTreeCount: false });
+        else invalidatePreparedData();
+        updateAll();
+        saveState();
+      });
+      $('#test-simulation').addEventListener('click', prepareComputerTest);
+       $('#run-simulation').addEventListener('click', handleSimulationAction);
+       $('#open-student-method').addEventListener('click', openStudentMethod);
+       $('#close-student-method').addEventListener('click', () => $('#student-method-dialog').close());
+       $('#student-method-dialog').addEventListener('click', (event) => { if (event.target === $('#student-method-dialog')) $('#student-method-dialog').close(); });
+       placeSliderHelpAtRangeEnd();
+      window.addEventListener('openai:set_globals', (event) => {
+        const state = event.detail?.globals?.widgetState?.modelContent;
+        if (state && document.activeElement !== controls.treeCount && Date.now() - lastLocalEdit > 5000) {
+          const setupChanged = (Number.isFinite(state.area) && Number(state.area) !== areaHectares()) || (Number.isFinite(state.rainMultiplier) && Number(state.rainMultiplier) !== Number(controls.rainMultiplier.value)) || (typeof state.crop === 'string' && crops[state.crop] && state.crop !== controls.crop.value);
+          applyState(state);
+          if (setupChanged) invalidatePreparedData();
+          updateAll();
+        }
+      });
+    })();
+  </script>
+  <script>
+    (() => {
+      const root = document.getElementById("oasis-simulation");
+      if (!root) return;
+      const screen = root.querySelector(".screen") || root;
+      root.querySelectorAll(".field-help").forEach((details) => {
+        details.addEventListener("toggle", () => {
+          if (!details.open) return;
+          root.querySelectorAll(".field-help[open]").forEach((other) => {
+            if (other !== details) other.open = false;
+          });
+          const panel = details.querySelector(".hint-panel");
+          if (!panel) return;
+          requestAnimationFrame(() => {
+            const screenRect = screen.getBoundingClientRect();
+            const anchorRect = details.getBoundingClientRect();
+            panel.style.maxWidth = Math.max(180, screenRect.width - 24) + "px";
+            const panelWidth = panel.getBoundingClientRect().width;
+            const left = Math.min(Math.max(anchorRect.left, screenRect.left + 12), screenRect.right - panelWidth - 12);
+            panel.style.left = (left - anchorRect.left) + "px";
+          });
+        });
+      });
+      root.addEventListener("click", (event) => {
+        const selected = event.target.closest(".quiz-option");
+        if (!selected || selected.disabled || !root.contains(selected)) return;
+        const quiz = selected.closest(".help-quiz");
+        if (!quiz) return;
+        const options = [...quiz.querySelectorAll(".quiz-option")];
+        const correct = options.find((option) => option.dataset.correct === "true");
+        const feedback = quiz.querySelector(".quiz-feedback");
+        if (!correct || !feedback) return;
+        options.forEach((option) => {
+          option.disabled = true;
+          option.setAttribute("aria-pressed", option === selected ? "true" : "false");
+          if (option === correct) option.classList.add("quiz-correct");
+          if (option === selected && option !== correct) option.classList.add("quiz-wrong");
+        });
+        feedback.hidden = false;
+        feedback.textContent = (selected === correct ? "Правильно. " : "Правильна відповідь: ") +
+          correct.dataset.answerLabel + ". " + quiz.dataset.explanation;
+      });
+      root.querySelectorAll(".help-quiz").forEach((quiz) => {
+        const question = quiz.querySelector(".quiz-question");
+        if (!question) return;
+        if (question.textContent.includes("об’єм чаші")) {
+          quiz.dataset.explanation = "Поперечний переріз чаші — півкруг радіуса h, тому його площа A = π × h² ÷ 2. Помножте площу на довжину водосховища L: V = A × L. Підставляйте h і L у метрах; об’єм отримаєте в м³.";
+        } else {
+          quiz.dataset.explanation = "Витрата пов’язана з площею круглого перерізу формулою Q = A × v, де A = π × D² ÷ 4. Виразіть діаметр: D = √(4Q ÷ (π × v)) = 2 × √(Q ÷ (π × v)). Підставляйте Q у м³/с, v — у м/с: спочатку D отримаєте в метрах, потім помножте на 1 000, щоб отримати міліметри.";
+        }
+      });
+    })();
+  </script>
+</div>
+
+<script src="locale-en.js?v=20261120-2307"></script>
+</body>
+</html>

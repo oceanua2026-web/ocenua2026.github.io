@@ -1,86 +1,11 @@
-const views = {
-  ukraine: {
-    title: "Україна",
-    image: "assets/maps/ukraine.png",
-    alt: "Карта України",
-    aspect: 1536 / 1024,
-    parent: null,
-    hotspots: [
-      {
-        label: "Одеса",
-        target: "odesa-oblast",
-        x: 44.7,
-        y: 75.6,
-        width: 12,
-        height: 8
-      }
-    ]
-  },
-  "odesa-oblast": {
-    title: "Одеська область",
-    image: "assets/maps/odesa-oblast.png",
-    alt: "Карта Одеської області",
-    aspect: 1086 / 1448,
-    parent: "ukraine",
-    hotspots: [
-      {
-        label: "Білгород-Дністровський",
-        target: "bilhorod-dnistrovskyi-raion",
-        x: 37,
-        y: 55,
-        width: 30,
-        height: 14
-      }
-    ]
-  },
-  "bilhorod-dnistrovskyi-raion": {
-    title: "Білгород-Дністровський район",
-    image: "assets/maps/bilhorod-dnistrovskyi-raion.png",
-    alt: "Карта Білгород-Дністровського району",
-    aspect: 1448 / 1086,
-    parent: "odesa-oblast",
-    hotspots: [
-      {
-        label: "м. Білгород-Дністровськ",
-        target: "bilhorod-dnistrovskyi-city",
-        x: 57,
-        y: 34,
-        width: 22,
-        height: 14
-      }
-    ]
-  },
-  "bilhorod-dnistrovskyi-city": {
-    title: "м. Білгород-Дністровськ",
-    image: "assets/maps/bilhorod-dnistrovskyi-city.png",
-    alt: "Карта міста Білгород-Дністровськ",
-    aspect: 1448 / 1086,
-    parent: "bilhorod-dnistrovskyi-raion",
-    hotspots: []
-  }
-};
-
-Object.assign(views, window.OCEANUA_EXTRA_VIEWS || {});
-Object.entries(window.OCEANUA_EXTRA_HOTSPOTS || {}).forEach(([viewId, hotspots]) => {
-  if (!views[viewId] || !Array.isArray(hotspots)) return;
-  views[viewId].hotspots = [
-    ...(views[viewId].hotspots || []),
-    ...hotspots
-  ];
-});
-
 const menuItems = [
-  { id: "cities", label: "Місто", hint: "Області, райони, громади, населені пункти" },
-  { id: "flashcards", label: "Флешкартки", hint: "Класи, предмети, підручники, тести" },
-  { id: "stats", label: "Статистика", hint: "Результати навчання" },
-  { id: "python", label: "Інтерактивні уроки Python", hint: "Уроки крок за кроком і флешкартки" },
-  { id: "schedule", label: "Розклад", hint: "Фото або файл розкладу" },
-  { id: "chat", label: "Чат", hint: "Школа, район, громада" },
-  { id: "tourism", label: "Туризм", hint: "Маршрути і туристичні об'єкти" },
-  { id: "ecology", label: "Екологія", hint: "Проблеми міста і об'єкти на карті" },
-  { id: "grants", label: "Гранти", hint: "Можливості для організацій" },
-  { id: "profile", label: "Профіль", hint: "Гість, реєстрація і редагування профілю" },
-  { id: "about", label: "Про програму", hint: "Власник, зв'язок, карти" }
+  { id: "flashcards", label: "Флешкартки", labelEn: "Flashcards" },
+  { id: "stats", label: "Статистика", labelEn: "Statistics" },
+  { id: "python", label: "Інтерактивні уроки Python", labelEn: "Interactive Python lessons" },
+  { id: "oasis", label: "STEAM-модуль «Оазис»", labelEn: "STEM module “Oasis”" },
+  { id: "schedule", label: "Розклад", labelEn: "Schedule" },
+  { id: "profile", label: "Профіль", labelEn: "Profile" },
+  { id: "about", label: "Про програму", labelEn: "About" }
 ];
 
 const schoolSubjectsByGrade = {
@@ -101,42 +26,24 @@ const schoolSubjectsByGrade = {
 const places = window.OCEANUA_PLACES || { oblasts: [] };
 const nmtData = window.OCEANUA_NMT || { years: {} };
 const gradeFlashcardCatalog = window.OCEANUA_GRADE_FLASHCARDS || { grades: {} };
-const mappedSchools = Array.isArray(window.OCEANUA_SCHOOLS) ? window.OCEANUA_SCHOOLS : [];
-const mapLinks = window.OCEANUA_MAP_LINKS || {};
-const schoolChats = window.OCEANUA_SCHOOL_CHATS || {};
+const availableSchools = Array.isArray(window.OCEANUA_SCHOOLS) ? window.OCEANUA_SCHOOLS : [];
 const profileStorageKey = "oceanua-profile";
 const registeredUsersStorageKey = "oceanua-registered-users";
 const adminProposalsStorageKey = "oceanua-admin-proposals";
 const nmtStatsStorageKey = "oceanua-nmt-statistics";
-const schoolArticlesStorageKey = "oceanua-school-articles";
-const settlementMapTargets = {
-  UA51040010010048834: "bilhorod-dnistrovskyi-city",
-  UA51100270010076757: "odesa-oblast",
-  ...(mapLinks.settlementMapTargets || {})
-};
-const mapCanvas = document.getElementById("mapCanvas");
-const mapImage = document.getElementById("mapImage");
-const mapBackground = document.getElementById("mapBackground");
-const hotspotsLayer = document.getElementById("hotspotsLayer");
-const mapSchoolList = document.getElementById("mapSchoolList");
-const mapControls = document.getElementById("mapControls");
-const backButton = document.getElementById("backButton");
-const homeButton = document.getElementById("homeButton");
-const viewTitle = document.getElementById("viewTitle");
-const mapMessage = document.getElementById("mapMessage");
+const scheduleGuestIdStorageKey = "oceanua-schedule-guest-id";
+const schedulePhotoDatabaseName = "oceanua-schedule-photos";
+const schedulePhotoStoreName = "photos";
+const oceanuaApp = document.querySelector(".oceanua-app");
 const menuToggle = document.getElementById("menuToggle");
 const profileEntry = document.getElementById("profileEntry");
 const profileEntryText = document.getElementById("profileEntryText");
 const mainMenu = document.getElementById("mainMenu");
-const closeMenuButton = document.getElementById("closeMenu");
-const drawerBackdrop = document.getElementById("drawerBackdrop");
+const sectionBack = document.getElementById("sectionBack");
 const menuList = document.getElementById("menuList");
 const menuContent = document.getElementById("menuContent");
-const profileStatus = document.getElementById("profileStatus");
 
-let currentViewId = "ukraine";
-let suppressHashChange = false;
-let activeMenuId = "cities";
+let activeMenuId = "";
 let activeSubmenuId = "";
 let selectedLearningGrade = "";
 let selectedFlashcardGrade = "11";
@@ -161,6 +68,10 @@ let selectedRaionIndex = -1;
 let selectedHromadaIndex = -1;
 let searchIndex = null;
 let profilePlaceSelectionMode = false;
+let schedulePhotoDbPromise = null;
+let schedulePhotoObjectUrl = "";
+let scheduleRenderToken = 0;
+let scheduleFallbackGuestId = "";
 
 function normalizeText(value) {
   return String(value || "").trim().toLocaleLowerCase("uk-UA");
@@ -178,120 +89,6 @@ function escapeHtml(value) {
 
 function formatDetails(parts) {
   return parts.filter(Boolean).join(" · ");
-}
-
-function setHash(viewId) {
-  suppressHashChange = true;
-  if (viewId === "ukraine") {
-    history.pushState(null, "", location.pathname + location.search);
-  } else {
-    location.hash = viewId;
-  }
-  window.setTimeout(() => {
-    suppressHashChange = false;
-  }, 0);
-}
-
-function openView(viewId, updateHash = true) {
-  const view = views[viewId] || views.ukraine;
-  currentViewId = views[viewId] ? viewId : "ukraine";
-
-  mapCanvas.style.setProperty("--aspect", String(view.aspect));
-  mapImage.src = view.image;
-  mapImage.alt = view.alt;
-  mapBackground.style.setProperty("--map-bg", `url("${view.image}")`);
-  viewTitle.textContent = view.title;
-  mapControls.hidden = currentViewId === "ukraine";
-  mapMessage.hidden = true;
-  mapMessage.textContent = "";
-
-  renderHotspots(view.hotspots);
-  renderSchoolMapList(view.hotspots);
-
-  if (updateHash) {
-    setHash(currentViewId);
-  }
-}
-
-function renderHotspots(hotspots) {
-  hotspotsLayer.innerHTML = "";
-
-  hotspots.forEach((hotspot) => {
-    const button = document.createElement("button");
-    const isSchoolMarker = hotspot.kind === "school";
-    button.className = isSchoolMarker ? "hotspot school-marker" : "hotspot";
-    button.type = "button";
-    button.setAttribute("aria-label", hotspot.label);
-    button.style.left = `${hotspot.x}%`;
-    button.style.top = `${hotspot.y}%`;
-    button.style.width = `${hotspot.width}%`;
-    button.style.height = `${hotspot.height}%`;
-    if (isSchoolMarker) {
-      button.innerHTML = `<span class="school-marker-number">${escapeHtml(String(hotspot.number || ""))}</span>`;
-    }
-    button.addEventListener("click", () => {
-      if (isSchoolMarker) {
-        const school = schoolChats[hotspot.schoolId];
-        if (!school) {
-          showMenuNotice(`Для "${hotspot.label}" дані школи ще не підключені.`);
-          return;
-        }
-        renderSchoolSite({ id: hotspot.schoolId, ...school });
-        return;
-      }
-
-      if (mainMenu.classList.contains("is-open") || menuContent.classList.contains("is-open")) {
-        closeMenu();
-      }
-      openView(hotspot.target);
-    });
-    hotspotsLayer.appendChild(button);
-  });
-}
-
-function renderSchoolMapList(hotspots = []) {
-  if (!mapSchoolList) return;
-  const schoolHotspots = hotspots
-    .filter((hotspot) => hotspot.kind === "school" && schoolChats[hotspot.schoolId])
-    .sort((a, b) => Number(a.number || 0) - Number(b.number || 0));
-
-  if (!schoolHotspots.length) {
-    mapSchoolList.hidden = true;
-    mapSchoolList.innerHTML = "";
-    return;
-  }
-
-  mapSchoolList.innerHTML = `
-    <strong>Школи громади</strong>
-    <div class="school-map-list-items">
-      ${schoolHotspots.map((hotspot) => {
-        const school = schoolChats[hotspot.schoolId];
-        return `
-          <button class="school-map-list-item" type="button" data-school-id="${escapeHtml(hotspot.schoolId)}">
-            <span>${escapeHtml(String(hotspot.number || ""))}</span>
-            <em>${escapeHtml(school.name || hotspot.label || "Школа")}</em>
-          </button>
-        `;
-      }).join("")}
-    </div>
-  `;
-  mapSchoolList.hidden = false;
-  mapSchoolList.querySelectorAll("[data-school-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const school = schoolChats[button.dataset.schoolId];
-      if (school) renderSchoolSite({ id: button.dataset.schoolId, ...school });
-    });
-  });
-}
-
-function goBack() {
-  const view = views[currentViewId] || views.ukraine;
-  openView(view.parent || "ukraine");
-}
-
-function showLoadError() {
-  mapMessage.textContent = "Не вдалося завантажити карту. Перевірте, що файл знаходиться всередині папки OceanUA.";
-  mapMessage.hidden = false;
 }
 
 function getProfile() {
@@ -381,7 +178,7 @@ function syncRegisteredUser(profile) {
   const id = profile.id || buildUserId(profile);
   const existingIndex = users.findIndex((user) => user.id === id || normalizeEmail(user.email) === normalizeEmail(profile.email));
   const existing = existingIndex >= 0 ? users[existingIndex] : null;
-  const firstAdmin = false; // Адміністратора ніколи не призначаємо автоматично: лише власник у Firebase
+  const firstAdmin = !users.length && !existing;
   const now = new Date().toISOString();
   const user = {
     id,
@@ -437,34 +234,6 @@ function syncCurrentProfilePermissions(users = getRegisteredUsers()) {
   updateProfileStatus();
 }
 
-function applyCloudProfile(data) {
-  if (!data) return;
-  const keys = ["name", "email", "phone", "schoolName", "schoolCode", "schoolAddress", "placeName", "placeCode", "hromadaName", "raionName", "grade", "groupName"];
-  const next = { ...getProfile() };
-  keys.forEach((key) => { if (data[key] !== undefined) next[key] = data[key]; });
-  next.id = data.uid;
-  next.role = data.role || "registered";
-  next.chatAccess = Boolean(data.chatAccess) || next.role === "administrator" || next.role === "teacher";
-  localStorage.setItem(profileStorageKey, JSON.stringify(next));
-  const users = getRegisteredUsers().filter((user) => user.id !== next.id && normalizeEmail(user.email) !== normalizeEmail(next.email));
-  users.push({
-    id: next.id, name: next.name, schoolName: next.schoolName || "", schoolCode: next.schoolCode || "", groupName: next.groupName || "",
-    email: next.email, phone: next.phone, grade: next.grade || "", city: next.placeName || "", placeCode: next.placeCode || "",
-    role: next.role, chatAccess: next.chatAccess, teacherRequested: Boolean(data.teacherRequested), createdAt: "", updatedAt: new Date().toISOString()
-  });
-  saveRegisteredUsers(users);
-  updateProfileStatus();
-}
-
-function applyCloudUsers(list) {
-  // Для адміністратора: повний список користувачів береться з Firebase, а не з браузера.
-  saveRegisteredUsers((list || []).map((user) => ({
-    id: user.id, name: user.name || "", schoolName: user.schoolName || "", schoolCode: user.schoolCode || "", groupName: user.groupName || "",
-    email: user.email || "", phone: user.phone || "", grade: user.grade || "", city: user.placeName || "", placeCode: user.placeCode || "",
-    role: user.role || "registered", chatAccess: Boolean(user.chatAccess), teacherRequested: Boolean(user.teacherRequested), createdAt: "", updatedAt: ""
-  })));
-}
-
 function isAdminProfile() {
   const profile = getProfile();
   const user = getCurrentRegisteredUser();
@@ -492,6 +261,17 @@ function getNmtStats() {
   } catch {
     return { sessions: [] };
   }
+}
+
+function getUserNmtSessions() {
+  const userKey = getStatsUserKey();
+  return getNmtStats().sessions.filter((session) => (
+    session && (session.userKey || "guest") === userKey
+  ));
+}
+
+function isPythonStatsSession(session) {
+  return String(session?.yearId || "") === "python";
 }
 
 function saveNmtStats(stats) {
@@ -775,7 +555,7 @@ function completeProfilePlaceSelection(name, type, context = {}) {
   const directory = window.OCEANUA_CITY_EDUCATION?.[code];
   const matches = getProfileSchoolMatches(getProfile());
   if (directory || matches.length) {
-    renderCityEducationDirectory(directory || {name, checkedAt: "за даними карти", schools: matches.map(s => ({...s, type: "Навчальний заклад", sources: []})), colleges: []});
+    renderCityEducationDirectory(directory || {name, checkedAt: "за даними довідника", schools: matches.map(s => ({...s, type: "Навчальний заклад", sources: []})), colleges: []});
     showMenuNotice("Оберіть навчальний заклад, щоб заповнити місто та заклад у профілі.");
   } else {
     profilePlaceSelectionMode = false;
@@ -808,10 +588,10 @@ function getProfileSchoolMatches(profile) {
     name: school.name, code: `${school.type === "Фаховий коледж" ? "edbo" : "isuo"}:${school.id}`,
     address: school.address, placeCode
   }));
-  if (!mappedSchools.length) return [];
+  if (!availableSchools.length) return [];
   const filtered = placeCode
-    ? mappedSchools.filter((school) => getSchoolPlaceCode(school) === placeCode)
-    : mappedSchools;
+    ? availableSchools.filter((school) => getSchoolPlaceCode(school) === placeCode)
+    : availableSchools;
   return filtered
     .map((school) => ({
       name: getSchoolName(school),
@@ -852,38 +632,33 @@ function clearProfile() {
 function updateProfileStatus() {
   const profile = getProfile();
   const name = profile.name?.trim();
-  const user = getCurrentRegisteredUser();
-  const place = profile.placeCode ? ` Населений пункт: ${profile.placeName || profile.city}.` : "";
-  const role = user?.role || profile.role || "";
-  const roleText = role === "administrator"
-    ? " Адміністратор."
-    : canManageChats()
-      ? " Може вести чати."
-      : "";
-  profileStatus.textContent = name
-    ? `${name}.${place}${roleText} Статистика буде зберігатися локально.`
-    : `Гість.${place} Статистика зберігається на цьому пристрої.`;
-  profileEntryText.textContent = name || "Гість";
-  profileEntry.setAttribute("aria-label", name ? `Профіль: ${name}` : "Профіль: Гість");
+  const english = window.OCEANUA_LOCALE?.language === "en";
+  profileEntryText.textContent = name || (english ? "Guest" : "Гість");
+  profileEntry.setAttribute("aria-label", name
+    ? (english ? `Profile: ${name}` : `Профіль: ${name}`)
+    : (english ? "Profile: Guest" : "Профіль: Гість"));
 }
 
 function openMenu(sectionId = "") {
-  mainMenu.classList.add("is-open");
-  mainMenu.setAttribute("aria-hidden", "false");
-  drawerBackdrop.hidden = false;
-  menuToggle.setAttribute("aria-expanded", "true");
-  renderMenu(activeMenuId);
   if (sectionId) {
     openSubmenu(sectionId);
+    return;
   }
+  returnHome();
 }
 
-function closeMenu() {
-  mainMenu.classList.remove("is-open");
-  mainMenu.setAttribute("aria-hidden", "true");
-  drawerBackdrop.hidden = true;
-  menuToggle.setAttribute("aria-expanded", "false");
-  closeSubmenu();
+function returnHome() {
+  oceanuaApp.classList.remove("is-section-view");
+  activeMenuId = "";
+  activeSubmenuId = "";
+  mainMenu.classList.add("is-open");
+  mainMenu.setAttribute("aria-hidden", "false");
+  menuContent.classList.remove("is-open");
+  menuContent.setAttribute("aria-hidden", "true");
+  menuContent.removeAttribute("data-active-section");
+  menuContent.innerHTML = "";
+  sectionBack.hidden = true;
+  renderMenu("");
 }
 
 function openSubmenu(sectionId) {
@@ -891,34 +666,24 @@ function openSubmenu(sectionId) {
   activeSubmenuId = sectionId;
   menuContent.dataset.activeSection = sectionId;
   renderMenuContent(sectionId);
+  oceanuaApp.classList.add("is-section-view");
+  mainMenu.classList.remove("is-open");
+  mainMenu.setAttribute("aria-hidden", "true");
+  sectionBack.hidden = false;
   menuContent.classList.add("is-open");
   menuContent.setAttribute("aria-hidden", "false");
   renderMenu(sectionId);
 }
 
-function closeSubmenu() {
-  activeSubmenuId = "";
-  menuContent.classList.remove("is-open");
-  menuContent.setAttribute("aria-hidden", "true");
-  menuContent.removeAttribute("data-active-section");
-  menuContent.innerHTML = "";
-  renderMenu(activeMenuId);
-}
-
 function toggleSubmenu(sectionId) {
-  if (activeSubmenuId === sectionId && menuContent.classList.contains("is-open")) {
-    closeSubmenu();
-    return;
-  }
   openSubmenu(sectionId);
 }
 
 function renderMenu(sectionId = activeMenuId) {
   activeMenuId = sectionId;
   menuList.innerHTML = menuItems.map((item) => `
-    <button class="menu-item${item.id === activeSubmenuId ? " is-active" : ""}" type="button" data-menu-id="${item.id}">
-      <strong>${item.label}</strong>
-      <span>${item.hint}</span>
+    <button class="menu-item${item.id === activeSubmenuId ? " is-active" : ""}" type="button" data-menu-id="${item.id}"${item.disabled ? " disabled" : ""}>
+      <strong>${window.OCEANUA_LOCALE?.language === "en" ? item.labelEn : item.label}</strong>
     </button>
   `).join("");
 
@@ -931,8 +696,8 @@ function renderMenu(sectionId = activeMenuId) {
 }
 
 function renderMenuContent(sectionId) {
-  if (sectionId === "cities") {
-    renderCitiesSection();
+  if (sectionId === "profile-place") {
+    renderProfilePlaceSection();
     return;
   }
 
@@ -946,29 +711,18 @@ function renderMenuContent(sectionId) {
     return;
   }
 
+  if (sectionId === "oasis") {
+    renderOasisSection();
+    return;
+  }
+
   const renderers = {
     stats: renderStatsSection,
     python: () => window.renderPythonLessons(),
-    schedule: () => renderStaticSection("Розклад", [
-      "Сторінка для фото або файлу з розкладом уроків.",
-      "Редагування розкладу буде прив'язане до користувачів з відповідним доступом."
-    ]),
-    chat: renderChatSection,
-    tourism: () => renderStaticSection("Туризм", [
-      "Майбутній розділ для туристичних маршрутів, об'єктів на карті і чату історії міста.",
-      "Дані будуть прив'язуватися до населених пунктів та об'єктів на карті."
-    ]),
-    ecology: () => renderStaticSection("Екологія", [
-      "Майбутній розділ для екологічних проблем міста і пов'язаних об'єктів на карті.",
-      "Пізніше його можна зв'язати з місцевими чатами та сторінками громад."
-    ]),
-    grants: () => renderStaticSection("Гранти", [
-      "Майбутній розділ для грантів від різних організацій.",
-      "Пізніше тут буде фільтр за містом, громадою, напрямом і організацією."
-    ]),
+    schedule: renderScheduleSection,
     about: () => renderStaticSection("Про програму", [
       "Авторське право © Бортнік О. В. & Бортнік В. М., 2026. Усі права захищено.",
-      "Версія 2026.10.13.163422. Оновлено 13.10.2026 о 16:34:22 (Europe/Kyiv)."
+        "Версія 2026.11.21.001345. Оновлено 21.11.2026 о 00:13:45 (Europe/Kyiv)."
     ]),
     profile: renderExitSection
   };
@@ -1030,16 +784,16 @@ function buildSearchIndex() {
   return searchIndex;
 }
 
-function renderCitiesSection() {
+function renderProfilePlaceSection() {
   const oblastCount = places.oblastCount || places.oblasts.length;
   const hromadaCount = places.oblasts.reduce((sum, oblast) => sum + Number(oblast.hromadaCount || 0), 0);
   const settlementCount = places.oblasts.reduce((sum, oblast) => sum + Number(oblast.settlementCount || 0), 0);
 
   menuContent.innerHTML = `
     <div class="content-head">
-      <span>Довідник</span>
-      <h2>Місто</h2>
-      <p>Пошук по Україні та дерево: область -> район -> громада -> населений пункт.</p>
+      <span>Реєстрація профілю</span>
+      <h2>Вибір міста</h2>
+      <p>Знайдіть населений пункт для профілю: область → район → громада → населений пункт.</p>
     </div>
     <div class="stats-strip">
       <div><strong>${oblastCount}</strong><span>областей у файлах</span></div>
@@ -1133,12 +887,10 @@ function renderPlaceColumns() {
       selectedRaionIndex = -1;
       selectedHromadaIndex = -1;
       renderPlaceColumns();
-      const selected = places.oblasts[selectedOblastIndex];
       if (profilePlaceSelectionMode) {
         showMenuNotice("Для реєстрації розкрийте область і район, потім виберіть конкретний населений пункт.");
         return;
       }
-      maybeOpenMapForName(selected.name, "область", false, selected.center);
     });
   });
 
@@ -1147,12 +899,10 @@ function renderPlaceColumns() {
       selectedRaionIndex = Number(button.dataset.raionIndex);
       selectedHromadaIndex = -1;
       renderPlaceColumns();
-      const selected = places.oblasts[selectedOblastIndex]?.raions[selectedRaionIndex];
       if (profilePlaceSelectionMode) {
         showMenuNotice("Для реєстрації виберіть громаду і конкретний населений пункт зі списку.");
         return;
       }
-      maybeOpenMapForName(selected?.name, "район", false, selected?.center);
     });
   });
 
@@ -1180,10 +930,8 @@ function renderPlaceColumns() {
           raionIndex: selectedRaionIndex,
           hromadaIndex: selectedHromadaIndex
         }),
-        openCommunitySite: true
       };
       if (completeProfilePlaceSelection(settlementName, settlement?.type || "населений пункт", context)) return;
-      maybeOpenMapForName(settlementName, settlement?.type || "населений пункт", true, context);
     });
   });
 }
@@ -1240,16 +988,10 @@ function selectPlaceItem(item) {
   selectedHromadaIndex = item.hromadaIndex ?? -1;
   renderPlaceColumns();
   const context = {
-    ...getPlaceContext(item),
-    openCommunitySite: isCommunityLevel(item.type)
+    ...getPlaceContext(item)
   };
   if (completeProfilePlaceSelection(item.name, item.type, context)) return;
-  maybeOpenMapForName(item.name, item.type, true, context);
-}
-
-function isCommunityLevel(type) {
-  const normalizedType = normalizeText(type);
-  return normalizedType !== "область" && normalizedType !== "район";
+  showMenuNotice("Вибір міста доступний у формі реєстрації профілю.");
 }
 
 function getPlaceContext(item = {}) {
@@ -1273,78 +1015,16 @@ function getPlaceContext(item = {}) {
   };
 }
 
-function maybeOpenMapForName(name, type, closeAfterOpen, context = "") {
-  const code = typeof context === "object" ? context.code || "" : "";
-  if (typeof context === "object" && code && context.openCommunitySite) {
-    saveProfilePlace({
-      ...context,
-      name,
-      type
-    });
-  }
-  const educationDirectory = window.OCEANUA_CITY_EDUCATION?.[code];
-  if (educationDirectory && typeof context === "object" && context.openCommunitySite) {
-    renderCityEducationDirectory(educationDirectory);
-    return true;
-  }
-  const contextText = typeof context === "string"
-    ? context
-    : [
-      context.code,
-      context.subtitle,
-      context.oblastName,
-      context.raionName,
-      context.hromadaName,
-      context.hromadaCenter
-    ].filter(Boolean).join(" ");
-  const normalizedName = normalizeText(name);
-  const normalizedType = normalizeText(type);
-  const normalized = normalizeText(`${name || ""} ${contextText || ""}`);
-  const linkedNameTarget = typeof context === "object"
-    ? mapLinks.nameMapTargets?.[name] || mapLinks.nameMapTargets?.[context.hromadaName] || mapLinks.nameMapTargets?.[context.raionName] || ""
-    : mapLinks.nameMapTargets?.[name] || "";
-  let target = "";
-  if (settlementMapTargets[code]) {
-    target = settlementMapTargets[code];
-  } else if (linkedNameTarget) {
-    target = linkedNameTarget;
-  } else if (normalized.includes("білгород-дністровськ") || normalized.includes("білгород-дністровський")) {
-    target = normalizedName.includes("білгород-дністров") && normalizedType !== "область" && normalizedType !== "район"
-      ? "bilhorod-dnistrovskyi-city"
-      : "bilhorod-dnistrovskyi-raion";
-  } else if (normalized.includes("одеськ") || normalizedName === "одеса") {
-    target = "odesa-oblast";
-  }
-
-  if (target) {
-    openView(target);
-    if (closeAfterOpen) closeMenu();
-    return true;
-  }
-
-  if (typeof context === "object" && context.openCommunitySite) {
-    renderCommunitySite({
-      ...context,
-      name,
-      type
-    });
-    return false;
-  }
-
-  showMenuNotice(`Для "${name}" карта ще не підключена. Дані вже є у довіднику, карту можна додати наступним етапом.`);
-  return false;
-}
-
 function renderCityEducationDirectory(directory) {
   menuContent.innerHTML = `
     <div class="content-head">
-      <span>Освіта міста</span>
+      <span>Навчальні заклади</span>
       <h2>${escapeHtml(directory.name)}</h2>
       <p>Школи, гімназії, ліцеї та коледжі · Перевірено ${escapeHtml(directory.checkedAt)}</p>
     </div>
     <div class="action-row">
-      <button class="ghost-action" id="educationBack" type="button">До списку міст</button>
-      ${profilePlaceSelectionMode ? '<button class="ghost-action" id="educationCancel" type="button">До профілю</button>' : '<button class="ghost-action" id="educationMap" type="button">Карта міста</button>'}
+      <button class="ghost-action" id="educationBack" type="button">Назад до вибору міста</button>
+      <button class="ghost-action" id="educationCancel" type="button">До профілю</button>
     </div>
     <label class="education-search" for="educationSearch">Пошук за назвою або адресою
       <input class="text-field" id="educationSearch" type="search" placeholder="Наприклад: гімназія № 3 або медичний" autocomplete="off">
@@ -1366,100 +1046,29 @@ function renderCityEducationDirectory(directory) {
       matches += filtered.length;
       return `<section class="education-group"><h3>${title} <span>(${filtered.length}${query ? ` із ${entries.length}` : ""})</span></h3>
         ${filtered.length ? filtered.map(entry => `<article class="linked-panel education-card">
-          <h4><button class="education-map-link" type="button" data-education-map data-education-id="${escapeHtml(entry.id || entry.code)}">${escapeHtml(entry.name)}</button></h4>
+          <h4><button class="profile-school-link" type="button" data-profile-school data-education-id="${escapeHtml(entry.id || entry.code)}">${escapeHtml(entry.name)}</button></h4>
           <p>${escapeHtml(entry.type)} · ${escapeHtml(entry.address)}</p>
           ${renderSchoolSources(entry.sources)}
         </article>`).join("") : '<p class="education-empty">За цим запитом закладів не знайдено.</p>'}
       </section>`;
     }).join("");
-    document.querySelectorAll("[data-education-map]").forEach(button => button.addEventListener("click", () => {
-      if (profilePlaceSelectionMode) {
-        const entry = [...directory.schools, ...directory.colleges].find(s => String(s.id || s.code) === button.dataset.educationId);
-        if (!entry) return;
-        const profile = getProfile();
-        saveProfile({...profile, schoolName: entry.name, schoolCode: entry.code || `${entry.type === "Фаховий коледж" ? "edbo" : "isuo"}:${entry.id}`, schoolAddress: entry.address || "", schoolPlaceCode: profile.placeCode || "", groupName: profile.schoolName === entry.name ? profile.groupName || "" : ""});
-        profilePlaceSelectionMode = false;
-        openSubmenu("profile-edit");
-        showMenuNotice("Місто та навчальний заклад вибрано.");
-        return;
-      }
-      openView(directory.mapTarget);
-      closeMenu();
+    document.querySelectorAll("[data-profile-school]").forEach(button => button.addEventListener("click", () => {
+      if (!profilePlaceSelectionMode) return;
+      const entry = [...directory.schools, ...directory.colleges].find(s => String(s.id || s.code) === button.dataset.educationId);
+      if (!entry) return;
+      const profile = getProfile();
+      const schoolPrefix = entry.type === "Фаховий коледж" ? "edbo" : "isuo";
+      saveProfile({...profile, schoolName: entry.name, schoolCode: entry.code || (schoolPrefix + ":" + (entry.id || "")), schoolAddress: entry.address || "", schoolPlaceCode: profile.placeCode || "", groupName: profile.schoolName === entry.name ? profile.groupName || "" : ""});
+      profilePlaceSelectionMode = false;
+      openSubmenu("profile-edit");
+      showMenuNotice("Місто та навчальний заклад вибрано.");
     }));
     document.getElementById("educationResultCount").textContent = `Знайдено закладів: ${matches} із ${directory.schools.length + directory.colleges.length}`;
   };
   document.getElementById("educationSearch").addEventListener("input", renderGroups);
-  document.getElementById("educationBack").addEventListener("click", () => openSubmenu("cities"));
+  document.getElementById("educationBack").addEventListener("click", () => openSubmenu("profile-place"));
   document.getElementById("educationCancel")?.addEventListener("click", () => { profilePlaceSelectionMode = false; openSubmenu("profile-edit"); });
-  document.getElementById("educationMap")?.addEventListener("click", () => {
-    openView(directory.mapTarget);
-    closeMenu();
-  });
   renderGroups();
-}
-
-function renderCommunitySite(place) {
-  const chatAccess = canManageChats();
-  const hromadaTitle = place.hromadaName || place.name;
-  const placeLabel = `${place.type || "населений пункт"} ${place.name || ""}`.trim();
-  const locationLine = [place.oblastName, place.raionName].filter(Boolean).join(" · ");
-
-  menuContent.innerHTML = `
-    <div class="content-head">
-      <span>Громада</span>
-      <h2>${escapeHtml(hromadaTitle)}</h2>
-      <p>${escapeHtml(placeLabel)}${locationLine ? ` · ${escapeHtml(locationLine)}` : ""}</p>
-      ${place.code ? `<p class="place-code">Код населеного пункту: <strong>${escapeHtml(place.code)}</strong></p>` : ""}
-    </div>
-    <div class="stats-strip">
-      <div><strong>${escapeHtml(place.hromadaCenter || place.name || "-")}</strong><span>центр громади</span></div>
-      <div><strong>${escapeHtml(String(place.hromadaSettlementCount || "-"))}</strong><span>населених пунктів</span></div>
-      <div><strong>${escapeHtml(place.raionName || "-")}</strong><span>район</span></div>
-    </div>
-    <div class="linked-panel community-site">
-      <strong>Односторінковий сайт громади</strong>
-      <p>Тут буде локальна сторінка громади з новинами, навчальними закладами, розкладом, туризмом, екологією, грантами і правами редакторів.</p>
-    </div>
-    <div class="linked-panel community-chat">
-      <strong>Чат громади</strong>
-      <div class="chat-message">Вітаємо у чаті ${escapeHtml(hromadaTitle)}. Повноцінні повідомлення підключимо після структури сторінок і ролей.</div>
-      ${chatAccess ? `
-        <div class="chat-compose">
-          <input class="text-field" type="text" placeholder="Написати повідомлення">
-          <button class="primary-action" type="button">Надіслати</button>
-        </div>
-        <div class="chat-tools">
-          <button class="ghost-action" type="button">Закріпити</button>
-          <button class="ghost-action" type="button">Редагувати чат</button>
-          <button class="ghost-action" type="button">Модерація</button>
-        </div>
-      ` : `
-        <p>Вести та редагувати чат може адміністратор або зареєстрований користувач, якому адміністратор надав такий дозвіл.</p>
-      `}
-    </div>
-    <div class="action-row single-action">
-      <button class="ghost-action" id="backToCities" type="button">До списку</button>
-    </div>
-  `;
-  menuContent.classList.add("is-open");
-  menuContent.setAttribute("aria-hidden", "false");
-  document.getElementById("backToCities").addEventListener("click", () => openSubmenu("cities"));
-}
-
-function renderSchoolRows(rows) {
-  const visibleRows = rows.filter((row) => row.value);
-  if (!visibleRows.length) return "";
-
-  return `
-    <dl class="school-info-list">
-      ${visibleRows.map((row) => `
-        <div>
-          <dt>${escapeHtml(row.label)}</dt>
-          <dd>${row.html ? row.value : escapeHtml(row.value)}</dd>
-        </div>
-      `).join("")}
-    </dl>
-  `;
 }
 
 function renderSchoolSources(sources = []) {
@@ -1476,275 +1085,9 @@ function renderSchoolSources(sources = []) {
   `;
 }
 
-function getSchoolSiteKey(school) {
-  return school.id || school.edrpou || school.registryId || normalizeText(school.name || "school");
-}
-
-function getSchoolArticlesStore() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(schoolArticlesStorageKey) || "{}");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveSchoolArticlesStore(store) {
-  localStorage.setItem(schoolArticlesStorageKey, JSON.stringify(store));
-}
-
-function getSchoolArticles(school) {
-  const store = getSchoolArticlesStore();
-  const key = getSchoolSiteKey(school);
-  return Array.isArray(store[key]) ? store[key] : [];
-}
-
-function addSchoolArticle(school, article) {
-  const store = getSchoolArticlesStore();
-  const key = getSchoolSiteKey(school);
-  store[key] = [
-    article,
-    ...(Array.isArray(store[key]) ? store[key] : [])
-  ];
-  saveSchoolArticlesStore(store);
-}
-
-function renderArticleBody(text) {
-  return String(text || "")
-    .split(/\n{2,}|\r?\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
-    .join("");
-}
-
-function renderSchoolPassportText(school) {
-  const lines = [
-    `Назва: ${school.name || ""}`,
-    school.fullName ? `Повна назва: ${school.fullName}` : "",
-    school.type ? `Тип закладу: ${school.type}` : "",
-    school.hromada ? `Громада: ${school.hromada}` : "",
-    school.settlement ? `Населений пункт: ${school.settlement}` : "",
-    school.address ? `Адреса: ${school.address}` : "",
-    school.postalAddress ? `Поштова адреса: ${school.postalAddress}` : "",
-    school.edrpou ? `ЄДРПОУ: ${school.edrpou}` : "",
-    school.edboCode ? `Код ЄДЕБО: ${school.edboCode}` : "",
-    school.registryId ? `Код АІКОМ/ІСУО: ${school.registryId}` : "",
-    school.settlementCode ? `Код населеного пункту: ${school.settlementCode}` : "",
-    school.koatuu ? `КОАТУУ: ${school.koatuu}` : "",
-    school.ownership ? `Форма власності: ${school.ownership}` : "",
-    school.localityType ? `Місцевість: ${school.localityType}` : "",
-    school.degree ? `Ступінь: ${school.degree}` : "",
-    school.director ? `Керівник: ${school.director}` : "",
-    school.authorizedPerson ? `Уповноважена особа: ${school.authorizedPerson}` : "",
-    school.teachers ? `Вчителів: ${school.teachers}` : "",
-    school.studentCapacity ? `Проектна потужність: ${school.studentCapacity}` : "",
-    school.students ? `Учнів: ${school.students}` : "",
-    school.staff ? `Працівників: ${school.staff}` : "",
-    school.classes ? `Класів: ${school.classes}` : "",
-    school.inclusiveClasses ? `Інклюзивних класів: ${school.inclusiveClasses}` : "",
-    school.language ? `Мова навчання: ${school.language}` : "",
-    school.phone ? `Телефон: ${school.phone}` : "",
-    school.email ? `E-mail: ${school.email}` : "",
-    school.website ? `Сайт: ${school.website}` : "",
-    school.note ? `Примітка: ${school.note}` : ""
-  ].filter(Boolean);
-
-  return lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
-}
-
-function renderSchoolArticles(school, articles) {
-  const passportArticle = {
-    title: "Паспорт школи",
-    category: "Довідка",
-    author: "ОкеанUA",
-    createdAt: "",
-    body: [
-      school.fullName || school.name || "",
-      school.address ? `Адреса: ${school.address}` : "",
-      school.phone ? `Телефон: ${school.phone}` : "",
-      school.email ? `E-mail: ${school.email}` : "",
-      school.website ? `Сайт: ${school.website}` : "",
-      school.note || ""
-    ].filter(Boolean).join("\n")
-  };
-  const allArticles = [...articles, passportArticle];
-
-  return `
-    <div class="school-article-list">
-      ${allArticles.map((article) => `
-        <article class="school-article">
-          <div class="school-article-meta">
-            <span>${escapeHtml(article.category || "Стаття")}</span>
-            ${article.createdAt ? `<time datetime="${escapeHtml(article.createdAt)}">${escapeHtml(formatDateTime(article.createdAt))}</time>` : ""}
-          </div>
-          <h3>${escapeHtml(article.title || "Стаття школи")}</h3>
-          <div class="school-article-body">${renderArticleBody(article.body)}</div>
-          <footer>${escapeHtml(article.author || "Автор не вказаний")}</footer>
-        </article>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderSchoolArticleForm(canEdit) {
-  if (!canEdit) {
-    return `<p>Додавати та редагувати статті можуть адміністратор або зареєстрований користувач, якому адміністратор надав право вести контент.</p>`;
-  }
-
-  return `
-    <form class="school-article-form" id="schoolArticleForm">
-      <label class="field-label" for="schoolArticleTitle">Назва статті</label>
-      <input class="text-field" id="schoolArticleTitle" type="text" maxlength="120" placeholder="Наприклад: Новини школи або оголошення">
-      <label class="field-label" for="schoolArticleCategory">Розділ</label>
-      <select class="text-field" id="schoolArticleCategory">
-        <option value="Новини">Новини</option>
-        <option value="Оголошення">Оголошення</option>
-        <option value="Навчання">Навчання</option>
-        <option value="Історія школи">Історія школи</option>
-        <option value="Події">Події</option>
-      </select>
-      <label class="field-label" for="schoolArticleBody">Текст статті</label>
-      <textarea class="text-field textarea-field" id="schoolArticleBody" maxlength="4000" placeholder="Введіть текст статті українською мовою"></textarea>
-      <div class="action-row single-action">
-        <button class="primary-action" type="submit">Додати статтю</button>
-      </div>
-      <p class="empty-text" id="schoolArticleStatus"></p>
-    </form>
-  `;
-}
-
-function renderSchoolSite(school) {
-  const contentAccess = canManageChats();
-  const articles = getSchoolArticles(school);
-  activeSubmenuId = "";
-  menuContent.dataset.activeSection = "school-site";
-  mainMenu.classList.remove("is-open");
-  mainMenu.setAttribute("aria-hidden", "true");
-  drawerBackdrop.hidden = true;
-  menuToggle.setAttribute("aria-expanded", "false");
-  renderMenu(activeMenuId);
-
-  const generalRows = renderSchoolRows([
-    { label: "Повна назва", value: school.fullName },
-    { label: "Тип закладу", value: school.type },
-    { label: "Громада", value: school.hromada },
-    { label: "Населений пункт", value: school.settlement },
-    { label: "Адреса", value: school.address },
-    { label: "Поштова адреса", value: school.postalAddress },
-    { label: "Форма власності", value: school.ownership },
-    { label: "Місцевість", value: school.localityType },
-    { label: "Ступінь", value: school.degree },
-    { label: "Мова навчання", value: school.language }
-  ]);
-  const codeRows = renderSchoolRows([
-    { label: "ЄДРПОУ", value: school.edrpou },
-    { label: "Код ЄДЕБО", value: school.edboCode },
-    { label: "Код АІКОМ/ІСУО", value: school.registryId },
-    { label: "Код населеного пункту", value: school.settlementCode },
-    { label: "КОАТУУ", value: school.koatuu }
-  ]);
-  const peopleRows = renderSchoolRows([
-    { label: "Керівник", value: school.director },
-    { label: "Уповноважена особа", value: school.authorizedPerson },
-    { label: "Вчителів", value: school.teachers },
-    { label: "Проектна потужність", value: school.studentCapacity },
-    { label: "Учнів", value: school.students },
-    { label: "Працівників", value: school.staff },
-    { label: "Класів", value: school.classes },
-    { label: "Інклюзивних класів", value: school.inclusiveClasses }
-  ]);
-  const contactRows = renderSchoolRows([
-    { label: "Телефон", value: school.phone },
-    { label: "E-mail", value: school.email },
-    {
-      label: "Сайт",
-      value: school.website ? `<a class="school-source-link" href="${escapeHtml(school.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(school.website)}</a>` : "",
-      html: true
-    }
-  ]);
-
-  menuContent.innerHTML = `
-    <div class="content-head">
-      <span>Сайт школи</span>
-      <h2>${school.number ? `${escapeHtml(String(school.number))}. ` : ""}${escapeHtml(school.name || "Школа")}</h2>
-      <p>${escapeHtml(formatDetails([school.settlement, school.hromada, school.address]))}</p>
-    </div>
-    <div class="linked-panel school-site-card">
-      <strong>Інформація про заклад</strong>
-      ${generalRows}
-    </div>
-    <div class="linked-panel school-site-card">
-      <strong>Офіційні коди</strong>
-      ${codeRows}
-    </div>
-    <div class="linked-panel school-site-card">
-      <strong>Керівництво і показники</strong>
-      ${peopleRows}
-    </div>
-    <div class="linked-panel school-site-card">
-      <strong>Контакти</strong>
-      ${contactRows}
-    </div>
-    ${school.note ? `
-      <div class="linked-panel school-site-card">
-        <strong>Примітка</strong>
-        <p>${escapeHtml(school.note)}</p>
-      </div>
-    ` : ""}
-    <div class="linked-panel school-site-card">
-      <strong>Джерела даних</strong>
-      ${renderSchoolSources(school.sources || [])}
-    </div>
-    <div class="linked-panel school-site-card school-site-passport">
-      <strong>Паспорт школи</strong>
-      <div class="chat-message school-site-message">
-        ${renderSchoolPassportText(school)}
-      </div>
-    </div>
-    <div class="linked-panel school-site-card school-articles-section">
-      <strong>Статті школи</strong>
-      ${renderSchoolArticleForm(contentAccess)}
-      ${renderSchoolArticles(school, articles)}
-    </div>
-    <div class="action-row single-action">
-      <button class="primary-action" id="backToSchoolMap" type="button">До карти</button>
-    </div>
-  `;
-  menuContent.classList.add("is-open");
-  menuContent.setAttribute("aria-hidden", "false");
-  document.getElementById("backToSchoolMap").addEventListener("click", closeMenu);
-
-  const articleForm = document.getElementById("schoolArticleForm");
-  if (articleForm) {
-    articleForm.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const status = document.getElementById("schoolArticleStatus");
-      const title = document.getElementById("schoolArticleTitle")?.value.trim() || "";
-      const category = document.getElementById("schoolArticleCategory")?.value || "Новини";
-      const body = document.getElementById("schoolArticleBody")?.value.trim() || "";
-      if (!title || !body) {
-        if (status) status.textContent = "Заповніть назву і текст статті.";
-        return;
-      }
-      const profile = getProfile();
-      const user = getCurrentRegisteredUser();
-      addSchoolArticle(school, {
-        id: `${Date.now()}`,
-        title,
-        category,
-        body,
-        author: profile.name || user?.name || "Користувач",
-        createdAt: new Date().toISOString()
-      });
-      renderSchoolSite(school);
-    });
-  }
-}
-
 function showMenuNotice(text) {
   if (menuContent.getAttribute("aria-hidden") === "true") {
-    openSubmenu(activeMenuId || "cities");
+    openSubmenu(activeMenuId || "profile-place");
   }
   const existing = menuContent.querySelector(".menu-notice");
   if (existing) existing.remove();
@@ -1832,7 +1175,7 @@ function renderLoadedFlashcardsSection(
 
   const flashYearKey = getFlashcardYearKey(selectedFlashcardGrade);
   const gradeData = getFlashcardGradeData(selectedFlashcardGrade);
-  const subjects = Object.entries(gradeData.subjects || {});
+  const subjects = sortFlashcardSubjectEntries(Object.entries(gradeData.subjects || {}));
 
   selectedFlashcardSubject = subjectId && gradeData.subjects?.[subjectId]
     ? subjectId
@@ -1873,45 +1216,49 @@ function renderLoadedFlashcardsSection(
 
   menuContent.innerHTML = `
     <div class="nmt-workspace school-flashcards-workspace">
-      <div class="nmt-compact-head">
-        <strong>Флешкартки</strong>
-        <div class="nmt-compact-group" aria-label="Клас">
-          ${classes.map((grade) => {
-            const hasDecks = Boolean(gradeFlashcardCatalog.grades?.[grade]);
-            return `
-              <button class="${grade === selectedFlashcardGrade ? "is-selected" : ""}" type="button" data-flash-grade="${grade}" title="${hasDecks ? "Є тестові комплекти" : "Комплекти ще не додані"}">
-                ${grade} клас
-              </button>
-            `;
-          }).join("")}
-          <button class="${selectedFlashcardGrade === "nmt" ? "is-selected" : ""}" type="button" data-flash-grade="nmt" title="Картки для підготовки до НМТ">
-            НМТ
-          </button>
+      <div class="flashcards-section-head">
+        <div class="flashcards-class-row">
+          <strong>Флешкартки</strong>
+          <div class="nmt-compact-group" aria-label="Клас">
+            ${classes.map((grade) => {
+              const hasDecks = Boolean(gradeFlashcardCatalog.grades?.[grade]);
+              return `
+                <button class="${grade === selectedFlashcardGrade ? "is-selected" : ""}" type="button" data-flash-grade="${grade}" title="${hasDecks ? "Є тестові комплекти" : "Комплекти ще не додані"}">
+                  ${grade} клас
+                </button>
+              `;
+            }).join("")}
+            <button class="${selectedFlashcardGrade === "nmt" ? "is-selected" : ""}" type="button" data-flash-grade="nmt" title="Картки для підготовки до НМТ">
+              НМТ
+            </button>
+          </div>
         </div>
-        ${subjects.length ? `
-          <label class="nmt-subject-select">
-            <span>Предмет, автор, рік</span>
-            <select id="flashcardSubjectOnlySelect">
-              ${subjects.map(([subjectId, subject]) => `
-                <option value="${escapeHtml(subjectId)}"${subjectId === selectedFlashcardSubject ? " selected" : ""}>
-                  ${escapeHtml(subject.label || subjectId)}
-                </option>
-              `).join("")}
-            </select>
-          </label>
-        ` : ""}
-        ${variantOptions.length ? `
-          <label class="nmt-subject-select">
-            <span>Комплект</span>
-            <select id="flashcardVariantSelect">
-              ${variantOptions.map((option) => `
-                <option value="${option.variantIndex}"${option.variantIndex === selectedFlashcardVariantIndex ? " selected" : ""}>
-                  ${escapeHtml(option.label)} · ${option.cardCount} завд.
-                </option>
-              `).join("")}
-            </select>
-          </label>
-        ` : ""}
+        <div class="flashcards-select-row${variantOptions.length ? "" : " is-single-select"}">
+          ${subjects.length ? `
+            <label class="nmt-subject-select">
+              <span>${selectedFlashcardGrade === "nmt" ? "Предмет" : "Підручник"}</span>
+              <select id="flashcardSubjectOnlySelect">
+                ${subjects.map(([subjectId, subject]) => `
+                  <option value="${escapeHtml(subjectId)}"${subjectId === selectedFlashcardSubject ? " selected" : ""}>
+                    ${escapeHtml(subject.label || subjectId)}
+                  </option>
+                `).join("")}
+              </select>
+            </label>
+          ` : ""}
+          ${variantOptions.length ? `
+            <label class="nmt-subject-select">
+              <span>${selectedFlashcardGrade === "nmt" ? "Варіант тесту" : "Назва параграфа"}</span>
+              <select id="flashcardVariantSelect">
+                ${variantOptions.map((option) => `
+                  <option value="${option.variantIndex}"${option.variantIndex === selectedFlashcardVariantIndex ? " selected" : ""}>
+                    ${escapeHtml(option.label)} · ${option.cardCount} завд.
+                  </option>
+                `).join("")}
+              </select>
+            </label>
+          ` : ""}
+        </div>
       </div>
       ${subjects.length
         ? (activeSubject ? `${(activeSubject.variants || []).some((variant) => variant.excludedCardCount) ? `<p class="empty-text">Запитання з підтвердженими змістовими помилками виключено з тестування до виправлення.</p>` : ""}${renderNmtSubject(activeSubject)}` : "")
@@ -1954,7 +1301,7 @@ function renderLoadedFlashcardsSection(
   menuContent.querySelectorAll("[data-nmt-restart]").forEach((button) => {
     button.addEventListener("click", () => {
       if (activeSubject && activeVariant) {
-        startNewNmtSession(activeSubject, activeVariant, selectedFlashcardVariantIndex, activeCards.length);
+        startNewNmtSession(activeSubject, activeVariant, selectedFlashcardVariantIndex, activeCards);
       }
       renderFlashcardsSection(selectedFlashcardGrade, selectedFlashcardSubject, 0, selectedFlashcardVariantIndex);
     });
@@ -1993,7 +1340,8 @@ function renderLoadedFlashcardsSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, button.dataset.nmtSelect, "choice");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), button.dataset.nmtSelect, "choice");
       renderFlashcardsSection(selectedFlashcardGrade, selectedFlashcardSubject, selectedFlashcardCardIndex, selectedFlashcardVariantIndex);
     });
   });
@@ -2024,7 +1372,8 @@ function renderLoadedFlashcardsSection(
         return;
       }
       const selected = nmtDraftSelections[getNmtDraftKey(card)] || [];
-      recordNmtAnswer(card, selected.join(";"), "multi");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), selected.join(";"), "multi");
       renderFlashcardsSection(selectedFlashcardGrade, selectedFlashcardSubject, selectedFlashcardCardIndex, selectedFlashcardVariantIndex);
     });
   });
@@ -2036,7 +1385,8 @@ function renderLoadedFlashcardsSection(
         return;
       }
       const input = document.getElementById("nmtOpenAnswer");
-      recordNmtAnswer(card, input?.value || "", "input");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), input?.value || "", "input");
       renderFlashcardsSection(selectedFlashcardGrade, selectedFlashcardSubject, selectedFlashcardCardIndex, selectedFlashcardVariantIndex);
     });
   });
@@ -2047,7 +1397,8 @@ function renderLoadedFlashcardsSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, "", "reveal");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), "", "reveal");
       renderFlashcardsSection(selectedFlashcardGrade, selectedFlashcardSubject, selectedFlashcardCardIndex, selectedFlashcardVariantIndex);
     });
   });
@@ -2064,7 +1415,7 @@ function renderPythonSection(
     label: "Python",
     subjects: {}
   };
-  const subjects = Object.entries(yearData.subjects || {});
+  const subjects = sortFlashcardSubjectEntries(Object.entries(yearData.subjects || {}));
   const packageOptions = getNmtPackageOptions(yearData);
 
   selectedPythonSubject = subjectId && yearData.subjects?.[subjectId]
@@ -2132,7 +1483,7 @@ function renderPythonSection(
   menuContent.querySelectorAll("[data-nmt-restart]").forEach((button) => {
     button.addEventListener("click", () => {
       if (activeSubject && activeVariant) {
-        startNewNmtSession(activeSubject, activeVariant, selectedPythonVariantIndex, activeCards.length);
+        startNewNmtSession(activeSubject, activeVariant, selectedPythonVariantIndex, activeCards);
       }
       renderPythonSection(selectedPythonSubject, 0, selectedPythonVariantIndex);
     });
@@ -2168,7 +1519,8 @@ function renderPythonSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, button.dataset.nmtSelect, "choice");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), button.dataset.nmtSelect, "choice");
       renderPythonSection(selectedPythonSubject, selectedPythonCardIndex, selectedPythonVariantIndex);
     });
   });
@@ -2199,7 +1551,8 @@ function renderPythonSection(
         return;
       }
       const selected = nmtDraftSelections[getNmtDraftKey(card)] || [];
-      recordNmtAnswer(card, selected.join(";"), "multi");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), selected.join(";"), "multi");
       renderPythonSection(selectedPythonSubject, selectedPythonCardIndex, selectedPythonVariantIndex);
     });
   });
@@ -2211,7 +1564,8 @@ function renderPythonSection(
         return;
       }
       const input = document.getElementById("nmtOpenAnswer");
-      recordNmtAnswer(card, input?.value || "", "input");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), input?.value || "", "input");
       renderPythonSection(selectedPythonSubject, selectedPythonCardIndex, selectedPythonVariantIndex);
     });
   });
@@ -2222,7 +1576,8 @@ function renderPythonSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, "", "reveal");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), "", "reveal");
       renderPythonSection(selectedPythonSubject, selectedPythonCardIndex, selectedPythonVariantIndex);
     });
   });
@@ -2231,7 +1586,6 @@ function renderPythonSection(
 function renderRoleLabel(role) {
   const labels = {
     administrator: "Адміністратор",
-    teacher: "Вчитель",
     editor: "Редактор",
     chat_manager: "Веде чати",
     registered: "Зареєстрований"
@@ -2254,10 +1608,9 @@ function renderAdminPanel() {
             <div class="admin-user-main">
               <strong>${escapeHtml(user.name || "Без імені")}</strong>
               <span>${escapeHtml(formatDetails([user.schoolName, user.city, user.email, user.phone]))}</span>
-              ${user.teacherRequested && user.role === "registered" ? `<span class="optional-mark">⚠ просить права вчителя — виберіть «Вчитель» і збережіть</span>` : ""}
             </div>
             <select class="text-field compact-field" data-admin-role>
-              ${["registered", "teacher", "chat_manager", "editor", "administrator"].map((role) =>
+              ${["registered", "chat_manager", "editor", "administrator"].map((role) =>
                 `<option value="${role}"${user.role === role ? " selected" : ""}>${renderRoleLabel(role)}</option>`
               ).join("")}
             </select>
@@ -2291,24 +1644,16 @@ function bindAdminPanel() {
 
   const saveUsersButton = document.getElementById("saveAdminUsers");
   if (saveUsersButton) {
-    saveUsersButton.addEventListener("click", async () => {
+    saveUsersButton.addEventListener("click", () => {
       const users = getRegisteredUsers();
       menuContent.querySelectorAll("[data-user-id]").forEach((row) => {
         const user = users.find((item) => item.id === row.dataset.userId);
         if (!user) return;
         user.role = row.querySelector("[data-admin-role]").value;
-        user.chatAccess = row.querySelector("[data-admin-chat]").checked || user.role === "administrator" || user.role === "chat_manager" || user.role === "teacher";
+        user.chatAccess = row.querySelector("[data-admin-chat]").checked || user.role === "administrator" || user.role === "chat_manager";
         user.updatedAt = new Date().toISOString();
       });
       saveRegisteredUsers(users);
-      if (window.OceanAuth?.enabled) {
-        try {
-          for (const u of users) await window.OceanAuth.setRole(u.id, u.role, u.chatAccess);
-        } catch (error) {
-          showMenuNotice(window.OceanAuth.errorText(error));
-          return;
-        }
-      }
       renderSettingsSection();
       showMenuNotice("Права користувачів збережено.");
     });
@@ -2343,9 +1688,6 @@ function renderSettingsSection() {
   const user = getCurrentRegisteredUser();
   const completeProfile = isRegistrationComplete(profile);
   const roleLabel = renderRoleLabel(user?.role || profile.role || "registered");
-  const cloud = window.OceanAuth;
-  const cloudOn = Boolean(cloud?.enabled);
-  const signedIn = Boolean(cloudOn && cloud.currentUser());
   menuContent.innerHTML = `
     <div class="content-head">
       <span>Профіль</span>
@@ -2355,23 +1697,16 @@ function renderSettingsSection() {
     <label class="field-label" for="profileName">Ім'я</label>
     <input class="text-field" id="profileName" type="text" value="${escapeHtml(profile.name || "")}" placeholder="Наприклад: Олена">
     <label class="field-label" for="profileEmail">Email</label>
-    <input class="text-field" id="profileEmail" type="email" value="${escapeHtml(profile.email || "")}" placeholder="name@example.com"${signedIn ? " readonly" : ""}>
+    <input class="text-field" id="profileEmail" type="email" value="${escapeHtml(profile.email || "")}" placeholder="name@example.com">
     <label class="field-label" for="profilePhone">Телефон</label>
     <input class="text-field" id="profilePhone" type="tel" value="${escapeHtml(profile.phone || "")}" placeholder="+380...">
-    ${cloudOn && !signedIn ? `
-      <label class="field-label" for="profilePassword">Пароль <span class="optional-mark">мінімум 8 символів</span></label>
-      <input class="text-field" id="profilePassword" type="password" autocomplete="new-password" minlength="8">
-      <label class="field-label" for="profilePassword2">Повторіть пароль</label>
-      <input class="text-field" id="profilePassword2" type="password" autocomplete="new-password" minlength="8">
-    ` : ""}
-    ${cloudOn ? "" : `<p class="empty-text">Firebase ще не налаштований: працює локальний режим без пароля, а права адміністратора не видаються.</p>`}
     <label class="field-label" for="profilePlaceSummary">Місто або населений пункт</label>
     <button class="text-field selected-place profile-place-picker" id="profilePlaceSummary" type="button">
-      <strong>${escapeHtml(profile.placeName || profile.city || "Вибрати місто у меню Місто")}</strong>
+      <strong>${escapeHtml(profile.placeName || profile.city || "Вибрати місто")}</strong>
       <span>${profile.placeCode ? escapeHtml(formatDetails([profile.hromadaName, profile.raionName])) : "Натисніть, щоб вибрати місто та навчальний заклад"}</span>
     </button>
     <label class="field-label" for="profileSchool">Назва навчального закладу</label>
-    <input class="text-field profile-place-picker" id="profileSchool" type="text" readonly value="${escapeHtml(profile.schoolName || "")}" placeholder="Вибрати навчальний заклад у меню Місто">
+    <input class="text-field profile-place-picker" id="profileSchool" type="text" readonly value="${escapeHtml(profile.schoolName || "")}" placeholder="Вибрати навчальний заклад">
     ${profile.schoolAddress ? `<p class="empty-text">${escapeHtml(profile.schoolAddress)}</p>` : ""}
     <label class="field-label" for="profileClass">Клас <span class="optional-mark">необов'язково</span></label>
     <select class="text-field" id="profileClass">
@@ -2381,9 +1716,9 @@ function renderSettingsSection() {
         return `<option value="${grade}"${String(profile.grade || "") === grade ? " selected" : ""}>${grade} клас</option>`;
       }).join("")}
     </select>
-    <label class="field-label" for="profileGroup">Назва класу або групи <span class="optional-mark">вчителі пишуть: вчитель</span></label>
+    <label class="field-label" for="profileGroup">Назва класу або групи <span class="optional-mark">необов'язково</span></label>
     <input class="text-field" id="profileGroup" type="text" maxlength="80" value="${escapeHtml(profile.groupName || "")}" placeholder="Наприклад: 9-А, 9-Б, 121 або 122">
-    <p class="empty-text">Для школи вкажіть повну назву класу з літерою, для коледжу — номер групи. Вчитель пише слово «вчитель»: це лише запит, права вчителя підтверджує адміністратор.</p>
+    <p class="empty-text">Для школи вкажіть повну назву класу з літерою, для коледжу — номер групи. Ця назва зберігатиметься у результатах тестів.</p>
     ${completeProfile ? `
       <div class="selected-place profile-state">
         <strong>Профіль зареєстровано</strong>
@@ -2393,75 +1728,29 @@ function renderSettingsSection() {
       <p class="empty-text">Для реєстрації потрібні ім'я, email і телефон. Школу/заклад і клас можна не заповнювати.</p>
     `}
     <div class="action-row">
-      ${cloudOn && !signedIn
-        ? `<button class="primary-action" id="cloudRegister" type="button">Зареєструватися</button>
-           <button class="ghost-action" id="cloudLogin" type="button">Увійти</button>`
-        : `<button class="primary-action" id="saveProfile" type="button">Зберегти профіль</button>`}
-      ${signedIn
-        ? `<button class="ghost-action" id="cloudLogout" type="button">Вийти</button>`
-        : `<button class="ghost-action" id="clearProfile" type="button">Працювати як гість</button>`}
+      <button class="primary-action" id="saveProfile" type="button">Зберегти профіль</button>
+      <button class="ghost-action" id="clearProfile" type="button">Працювати як гість</button>
     </div>
-    ${cloudOn && !signedIn ? `<button class="ghost-action full-action" id="cloudReset" type="button">Забув пароль</button>` : ""}
     ${renderAdminPanel()}
   `;
 
-  const cloudBusy = async (task) => {
-    try { await task(); } catch (error) { showMenuNotice(cloud.errorText(error)); }
-  };
-  document.getElementById("cloudRegister")?.addEventListener("click", () => cloudBusy(async () => {
-    const draft = readProfileFormDraft({ clearPlaceOnIdentityChange: false });
-    const password = document.getElementById("profilePassword").value;
-    if (!isRegistrationComplete(draft)) { showMenuNotice("Заповніть ім'я, email і телефон."); return; }
-    if (password.length < 8) { showMenuNotice("Пароль має містити щонайменше 8 символів."); return; }
-    if (password !== document.getElementById("profilePassword2").value) { showMenuNotice("Паролі не збігаються."); return; }
-    const result = await cloud.register(draft, password);
+  document.getElementById("saveProfile").addEventListener("click", () => {
+    const registration = saveProfile(readProfileFormDraft({ clearPlaceOnIdentityChange: true }));
     renderSettingsSection();
-    showMenuNotice(result.teacherRequested
-      ? "Реєстрацію завершено. Запит на права вчителя надіслано адміністратору."
-      : "Реєстрацію завершено. Ви увійшли в профіль.");
-  }));
-  document.getElementById("cloudLogin")?.addEventListener("click", () => cloudBusy(async () => {
-    const email = document.getElementById("profileEmail").value;
-    const password = document.getElementById("profilePassword").value;
-    if (!email || !password) { showMenuNotice("Введіть email і пароль."); return; }
-    await cloud.login(email, password);
-    renderSettingsSection();
-    showMenuNotice("Ви увійшли в профіль.");
-  }));
-  document.getElementById("cloudLogout")?.addEventListener("click", () => cloudBusy(async () => {
-    await cloud.logout();
-    openSubmenu("profile");
-    showMenuNotice("Ви вийшли з профілю.");
-  }));
-  document.getElementById("cloudReset")?.addEventListener("click", () => cloudBusy(async () => {
-    const email = document.getElementById("profileEmail").value;
-    if (!email) { showMenuNotice("Введіть email, на який надіслати лист."); return; }
-    await cloud.resetPassword(email);
-    showMenuNotice("Лист для відновлення пароля надіслано.");
-  }));
-
-  document.getElementById("saveProfile")?.addEventListener("click", () => cloudBusy(async () => {
-    const draft = readProfileFormDraft({ clearPlaceOnIdentityChange: !signedIn });
-    if (signedIn) {
-      await cloud.updateProfile(draft);
-      renderSettingsSection();
-      showMenuNotice("Профіль збережено.");
-      return;
-    }
-    const registration = saveProfile(draft);
-    renderSettingsSection();
-    if (registration.registered) {
-      showMenuNotice("Профіль збережено локально.");
+    if (registration.firstAdmin) {
+      showMenuNotice("Профіль зареєстровано. Це перший користувач, тому він став адміністратором.");
+    } else if (registration.registered) {
+      showMenuNotice("Профіль зареєстровано і збережено локально.");
     } else {
       showMenuNotice("Профіль збережено локально. Для реєстрації заповніть ім'я, email і телефон.");
     }
-  }));
+  });
 
   const chooseProfilePlaceAndSchool = () => {
     saveProfileDraftFromSettings({ clearPlaceOnIdentityChange: true });
     profilePlaceSelectionMode = true;
-    openSubmenu("cities");
-    showMenuNotice("Оберіть місто, потім школу або коледж у його списку.");
+    openSubmenu("profile-place");
+    showMenuNotice("Оберіть населений пункт, потім навчальний заклад.");
   };
   document.getElementById("profilePlaceSummary").addEventListener("click", chooseProfilePlaceAndSchool);
   document.getElementById("profileSchool").addEventListener("click", chooseProfilePlaceAndSchool);
@@ -2521,100 +1810,9 @@ function renderExitSection() {
   });
 }
 
-function renderChatSection() {
-  const profile = getProfile();
-  const user = getCurrentRegisteredUser();
-  const hasPlace = Boolean(profile.placeCode);
-  const registered = Boolean(user && isRegistrationComplete(profile));
-  const chatAccess = canManageChats();
-  const placeName = profile.placeName || profile.city || "";
-  const placeDetails = formatDetails([profile.placeType, profile.hromadaName, profile.raionName, profile.placeCode]);
-  menuContent.innerHTML = `
-    <div class="content-head">
-      <span>Спілкування</span>
-      <h2>Чат</h2>
-      <p>Чати прив'язуються до школи, району, громади і об'єктів на карті. Писати та редагувати можуть тільки користувачі з дозволом.</p>
-    </div>
-    <div class="pill-grid">
-      <button type="button">Сайт школи</button>
-      <button type="button">Чат «Управління освіти»</button>
-      <button type="button">Чат громади</button>
-      <button type="button">Краєзнавчий чат міста</button>
-    </div>
-    <div class="linked-panel">
-      <strong>${registered ? "Зареєстрований профіль" : "Потрібна реєстрація"}</strong>
-      ${registered ? `
-        <p>${escapeHtml(formatDetails([profile.name, profile.schoolName, profile.email, profile.phone]))}</p>
-        <p>${chatAccess ? "Вам дозволено вести та редагувати чати." : "Адміністратор ще не надав вам право вести чати."}</p>
-      ` : `
-        <p>Щоб отримати право вести чати, заповніть ім'я, email і телефон у профілі. Школа або заклад не є обов'язковими.</p>
-        <button class="primary-action full-action" type="button" id="openChatSettings">Реєстрація і редагування профілю</button>
-      `}
-    </div>
-    <div class="linked-panel">
-      <strong>${hasPlace ? "Ваш населений пункт" : "Місто не вибрано"}</strong>
-      ${hasPlace ? `
-        <div class="selected-place">
-          <strong>${escapeHtml(placeName)}</strong>
-          <span>${escapeHtml(placeDetails)}</span>
-        </div>
-        <button class="primary-action full-action" type="button" id="openProfilePlaceChat">Відкрити чат громади</button>
-      ` : `
-        <p>Щоб чат відкривався без пошуку, спочатку виберіть населений пункт з офіційним кодом.</p>
-        <button class="primary-action full-action" type="button" id="chooseChatCity">Вибрати у меню Місто</button>
-      `}
-    </div>
-    <div class="linked-panel chat-admin-tools">
-      <strong>Керування чатами</strong>
-      ${chatAccess ? `
-        <p>Доступ відкритий. Ви можете вести чат, редагувати повідомлення і модерувати обговорення у прив'язаних розділах.</p>
-        <div class="chat-tools">
-          <button class="ghost-action" type="button">Створити чат школи</button>
-          <button class="ghost-action" type="button">Редагувати правила</button>
-          <button class="ghost-action" type="button">Модерація</button>
-        </div>
-      ` : `
-        <p>Цей блок активує адміністратор у списку зареєстрованих користувачів.</p>
-      `}
-    </div>
-  `;
-
-  const openSettingsButton = document.getElementById("openChatSettings");
-  if (openSettingsButton) {
-    openSettingsButton.addEventListener("click", () => openSubmenu("profile-edit"));
-  }
-
-  if (hasPlace) {
-    document.getElementById("openProfilePlaceChat").addEventListener("click", () => {
-      maybeOpenMapForName(placeName, profile.placeType || "населений пункт", true, {
-        code: profile.placeCode,
-        oblastName: profile.oblastName || "",
-        raionName: profile.raionName || "",
-        hromadaName: profile.hromadaName || "",
-        hromadaCenter: profile.hromadaCenter || "",
-        openCommunitySite: true
-      });
-    });
-  } else {
-    document.getElementById("chooseChatCity").addEventListener("click", () => {
-      openSubmenu("cities");
-      showMenuNotice("Оберіть населений пункт у дереві. Після вибору чат буде прив'язаний до його офіційного коду.");
-    });
-  }
-}
-
-function isPythonStatsSession(session) {
-  return session.yearId === "python" || /^python(?:[_-]|$)/i.test(String(session.subjectId || ""));
-}
-
-function getUserNmtSessions() {
-  const userKey = getStatsUserKey();
-  return getNmtStats().sessions.filter((session) => session.userKey === userKey);
-}
-
 function renderStatsSection(sessionId = selectedStatsSessionId) {
   const profile = getProfile();
-  const sessions = getUserNmtSessions().filter(session => !isPythonStatsSession(session));
+  const sessions = getUserNmtSessions().filter((session) => !isPythonStatsSession(session));
   const selectedSession = sessions.find((session) => session.id === sessionId) || sessions[0] || null;
   selectedStatsSessionId = selectedSession?.id || "";
   const completedCount = sessions.filter((session) => session.status === "completed").length;
@@ -2629,14 +1827,14 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
       <h2>Статистика</h2>
       <p>Локальна історія запусків тестових карток для користувача ${escapeHtml(profile.name?.trim() || "Гість")}.</p>
     </div>
-    <div class="stats-strip">
+    <div class="stats-strip stats-overview-strip">
       <div><strong>${sessions.length}</strong><span>запусків</span></div>
       <div><strong>${completedCount}</strong><span>завершено</span></div>
       <div><strong>${totalCorrect}</strong><span>правильних</span></div>
       <div><strong>${totalWrong}</strong><span>неправильних</span></div>
       <div><strong>${averageGrade}</strong><span>середня оцінка завершених тестів / 12</span></div>
     </div>
-    ${window.renderDatedGroupExport("general")}
+    ${renderGroupStatsPanel()}
     ${sessions.length ? `
       <div class="stats-session-list">
         ${sessions.map((session) => renderStatsSessionRow(session)).join("")}
@@ -2652,7 +1850,7 @@ function renderStatsSection(sessionId = selectedStatsSessionId) {
     button.addEventListener("click", () => renderStatsSection(button.dataset.statsSessionId));
   });
 
-  window.bindDatedGroupExport("general");
+  bindGroupStatsPanel();
   const exportButton = document.getElementById("exportNmtStats");
   if (exportButton) {
     exportButton.addEventListener("click", exportNmtStatsFile);
@@ -2688,7 +1886,7 @@ function renderStatsSessionDetails(session) {
           <div class="stats-answer-row ${answer.isCorrect ? "is-correct" : "is-wrong"}">
             <span>№ ${escapeHtml(answer.number)}</span>
             <strong>${answer.isCorrect ? "правильно" : "неправильно"}</strong>
-            <small>${answer.source === "reveal" ? "перегляд відповіді" : `вибрано: ${escapeHtml(answer.displaySelectedKey || answer.selectedKey || "-")}`} · правильно: ${escapeHtml(answer.displayCorrectKey || answer.correctKey || "-")}</small>
+            <small>${answer.source === "reveal" ? "перегляд відповіді" : `вибрано: ${escapeHtml(answer.selectedKey || "-")}`} · правильно: ${escapeHtml(answer.correctKey || "-")}</small>
           </div>
         `).join("") : `<p class="empty-text">У цьому запуску ще немає відповідей.</p>`}
       </div>
@@ -2699,7 +1897,7 @@ function renderStatsSessionDetails(session) {
 let importedGroupSessions = [];
 
 function getGroupStatsSessions() {
-  const sessions = [...getNmtStats().sessions, ...importedGroupSessions].filter(session => !isPythonStatsSession(session));
+  const sessions = [...getNmtStats().sessions, ...importedGroupSessions].filter((session) => !isPythonStatsSession(session));
   const unique = new Map();
   sessions.forEach(session => unique.set(`${session.userKey || ""}:${session.id}`, session));
   return [...unique.values()];
@@ -2771,7 +1969,7 @@ function exportNmtStatsFile() {
     schemaVersion: 3,
     userKey: getStatsUserKey(),
     profile: getProfile(),
-    sessions: getUserNmtSessions().filter(session => !isPythonStatsSession(session))
+    sessions: getUserNmtSessions().filter((session) => !isPythonStatsSession(session))
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -2795,6 +1993,14 @@ function getNmtSubjectCardCount(subject) {
   return (subject.variants || []).reduce((sum, variant) => sum + (variant.cards || []).length, 0);
 }
 
+function sortFlashcardSubjectEntries(entries) {
+  const collator = new Intl.Collator("uk-UA", { sensitivity: "base", numeric: true });
+  return [...entries].sort(([, subjectA], [, subjectB]) => collator.compare(
+    String(subjectA?.label || subjectA?.id || ""),
+    String(subjectB?.label || subjectB?.id || "")
+  ));
+}
+
 function getNmtPackageValue(subjectId, variantIndex) {
   return `${subjectId}::${variantIndex}`;
 }
@@ -2808,7 +2014,7 @@ function parseNmtPackageValue(value) {
 }
 
 function getNmtPackageOptions(yearData) {
-  return Object.entries(yearData.subjects || {}).flatMap(([subjectId, subject]) => {
+  return sortFlashcardSubjectEntries(Object.entries(yearData.subjects || {})).flatMap(([subjectId, subject]) => {
     const variants = subject.variants || [];
     return variants.map((variant, variantIndex) => {
       const session = variant.session || variant.label || "";
@@ -2835,9 +2041,141 @@ function findNmtSession(stats, sessionId) {
   return stats.sessions.find((session) => session.id === sessionId) || null;
 }
 
-function createNmtSession(subject, variant, variantIndex, total) {
+const flashcardOptionLetters = ["А", "Б", "В", "Г"];
+
+function shouldShuffleSessionOptions(yearId = selectedNmtYear) {
+  return yearId === "python"
+    || /^grade-\d+$/.test(String(yearId || ""))
+    || /^\d{4}$/.test(String(yearId || ""));
+}
+
+function shuffleList(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function getCardCorrectKeys(card) {
+  return String(card.correctKey || "")
+    .split(";")
+    .map((key) => key.trim())
+    .filter(Boolean);
+}
+
+function getCorrectOptionPositions(order, correctKeys) {
+  return order.reduce((positions, key, index) => {
+    if (correctKeys.includes(key)) positions.push(index);
+    return positions;
+  }, []);
+}
+
+function getOptionTargetSets(optionCount, correctCount, firstCard, previousPositions) {
+  const combinations = [];
+  const build = (start, current) => {
+    if (current.length === correctCount) {
+      combinations.push([...current]);
+      return;
+    }
+    for (let position = start; position < optionCount; position += 1) {
+      current.push(position);
+      build(position + 1, current);
+      current.pop();
+    }
+  };
+  build(0, []);
+
+  let candidates = combinations.filter((positions) => (
+    !firstCard || !positions.includes(0)
+  ));
+  if (!candidates.length) candidates = combinations;
+
+  if (Array.isArray(previousPositions) && previousPositions.length) {
+    const previous = [...previousPositions].sort((a, b) => a - b);
+    const changed = candidates.filter((positions) => (
+      positions.length !== previous.length
+      || positions.some((position, index) => position !== previous[index])
+    ));
+    if (changed.length) candidates = changed;
+  }
+
+  return candidates[Math.floor(Math.random() * candidates.length)] || combinations[0] || [];
+}
+
+function createSessionOptionOrders(cards, previousOrders = {}) {
+  const optionOrders = {};
+  (cards || []).forEach((card, index) => {
+    if (!["single", "multi"].includes(card.type) || !Array.isArray(card.options) || card.options.length < 2) return;
+    const originalKeys = card.options.map((option) => String(option.key || ""));
+    const correctKeys = getCardCorrectKeys(card);
+    if (!correctKeys.length || correctKeys.some((key) => !originalKeys.includes(key))) return;
+
+    const cardNumber = String(card.number || index + 1);
+    const previousOrder = previousOrders?.[cardNumber];
+    const previousPositions = Array.isArray(previousOrder)
+      ? getCorrectOptionPositions(previousOrder, correctKeys)
+      : null;
+    const targetPositions = getOptionTargetSets(
+      originalKeys.length,
+      correctKeys.length,
+      index === 0,
+      previousPositions
+    );
+    const randomizedCorrectKeys = shuffleList(correctKeys);
+    const randomizedWrongKeys = shuffleList(originalKeys.filter((key) => !correctKeys.includes(key)));
+    const order = Array(originalKeys.length);
+    targetPositions.forEach((position, targetIndex) => {
+      order[position] = randomizedCorrectKeys[targetIndex];
+    });
+    let wrongIndex = 0;
+    for (let position = 0; position < order.length; position += 1) {
+      if (!order[position]) {
+        order[position] = randomizedWrongKeys[wrongIndex];
+        wrongIndex += 1;
+      }
+    }
+    optionOrders[cardNumber] = order;
+  });
+  return optionOrders;
+}
+
+function getNmtSessionCard(card, session) {
+  const order = session?.shuffleOptions ? session.optionOrderByCard?.[String(card?.number || "")] : null;
+  if (!Array.isArray(order) || !Array.isArray(card?.options)) return card;
+
+  const optionsByOriginalKey = new Map(card.options.map((option) => [String(option.key || ""), option]));
+  const displayKeys = card.options.map((option, index) => (
+    String(option.key || flashcardOptionLetters[index] || index + 1)
+  ));
+  const options = order.map((originalKey, index) => {
+    const option = optionsByOriginalKey.get(originalKey);
+    return option ? { ...option, key: displayKeys[index] } : null;
+  }).filter(Boolean);
+  const correctKeys = getCardCorrectKeys(card);
+  const correctKey = correctKeys
+    .map((originalKey) => displayKeys[order.indexOf(originalKey)])
+    .filter(Boolean)
+    .join(";");
+  return { ...card, options, correctKey };
+}
+
+function createNmtSession(subject, variant, variantIndex, total, cards = []) {
   const profile = getProfile();
   const now = new Date().toISOString();
+  const stats = getNmtStats();
+  const shuffleOptions = shouldShuffleSessionOptions(selectedNmtYear);
+  const previousSession = shuffleOptions
+    ? stats.sessions.find((session) => (
+      session.userKey === getStatsUserKey()
+      && session.yearId === selectedNmtYear
+      && session.subjectId === selectedNmtSubject
+      && session.variantId === getNmtVariantId(variant, variantIndex)
+      && session.shuffleOptions
+      && session.optionOrderByCard
+    ))
+    : null;
   const session = {
     id: `nmt-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     userKey: getStatsUserKey(),
@@ -2870,7 +2208,10 @@ function createNmtSession(subject, variant, variantIndex, total) {
     scoreVersion: 2,
     answers: []
   };
-  const stats = getNmtStats();
+  if (shuffleOptions) {
+    session.shuffleOptions = true;
+    session.optionOrderByCard = createSessionOptionOrders(cards, previousSession?.optionOrderByCard || {});
+  }
   stats.sessions.unshift(session);
   saveNmtStats(stats);
   activeNmtSessionId = session.id;
@@ -2881,14 +2222,19 @@ function ensureNmtSession(subject, variant, variantIndex, total) {
   const stats = getNmtStats();
   const userKey = getStatsUserKey();
   const variantId = getNmtVariantId(variant, variantIndex);
-  const activeSession = activeNmtSessionId ? findNmtSession(stats, activeNmtSessionId) : null;
-  const canReuseSession = (session) => (
+  const requiresShuffle = shouldShuffleSessionOptions(selectedNmtYear);
+  const matchesDeck = (session) => (
     session
-    && (session.status === "in_progress" || session.status === "completed")
     && session.userKey === userKey
     && session.yearId === selectedNmtYear
     && session.subjectId === selectedNmtSubject
     && session.variantId === variantId
+  );
+  const activeSession = activeNmtSessionId ? findNmtSession(stats, activeNmtSessionId) : null;
+  const canReuseSession = (session) => (
+    matchesDeck(session)
+    && (session.status === "in_progress" || session.status === "completed")
+    && (!requiresShuffle || (session.shuffleOptions && session.optionOrderByCard))
   );
 
   if (canReuseSession(activeSession)) {
@@ -2902,10 +2248,23 @@ function ensureNmtSession(subject, variant, variantIndex, total) {
     return existingSession;
   }
 
-  return createNmtSession(subject, variant, variantIndex, total);
+  if (requiresShuffle) {
+    const legacySession = stats.sessions.find((session) => (
+      matchesDeck(session)
+      && session.status === "in_progress"
+      && !session.shuffleOptions
+    ));
+    if (legacySession) {
+      legacySession.status = "abandoned";
+      legacySession.updatedAt = new Date().toISOString();
+      saveNmtStats(stats);
+    }
+  }
+
+  return createNmtSession(subject, variant, variantIndex, total, variant.cards || []);
 }
 
-function startNewNmtSession(subject, variant, variantIndex, total) {
+function startNewNmtSession(subject, variant, variantIndex, cards) {
   const stats = getNmtStats();
   const currentSession = activeNmtSessionId ? findNmtSession(stats, activeNmtSessionId) : null;
   if (currentSession && currentSession.status === "in_progress") {
@@ -2913,7 +2272,7 @@ function startNewNmtSession(subject, variant, variantIndex, total) {
     currentSession.updatedAt = new Date().toISOString();
   }
   saveNmtStats(stats);
-  return createNmtSession(subject, variant, variantIndex, total);
+  return createNmtSession(subject, variant, variantIndex, cards.length, cards);
 }
 
 function getNmtSessionAnswer(session, cardNumber) {
@@ -2974,18 +2333,13 @@ function recordNmtAnswer(card, selectedKey, source) {
     return session;
   }
 
-  const order = card.type === "single" ? session.optionOrders?.[card.number] : null;
-  const keys = (card.options || []).map(option => option.key);
-  const chosenIndex = keys.indexOf(String(selectedKey || ""));
-  const normalizedSelected = String(order && chosenIndex >= 0 ? order[chosenIndex] : (selectedKey || ""));
+  const normalizedSelected = String(selectedKey || "");
   const isCorrect = source !== "reveal" && areNmtAnswersEqual(normalizedSelected, card.correctKey || "", card.type || "single");
   session.answers.push({
     number: card.number,
     externalId: card.externalId || "",
     type: card.type || "single",
     selectedKey: normalizedSelected,
-    displaySelectedKey: String(selectedKey || ""),
-    displayCorrectKey: order ? (keys[order.indexOf(card.correctKey)] || card.correctKey) : card.correctKey,
     correctKey: card.correctKey || "",
     isCorrect,
     source,
@@ -3011,7 +2365,7 @@ function renderNmtSection(
     label: `НМТ ${selectedNmtYear}`,
     subjects: {}
   };
-  const subjects = Object.entries(yearData.subjects || {});
+  const subjects = sortFlashcardSubjectEntries(Object.entries(yearData.subjects || {}));
   const packageOptions = getNmtPackageOptions(yearData);
 
   selectedNmtSubject = subjectId && yearData.subjects?.[subjectId]
@@ -3092,7 +2446,7 @@ function renderNmtSection(
   menuContent.querySelectorAll("[data-nmt-restart]").forEach((button) => {
     button.addEventListener("click", () => {
       if (activeSubject && activeVariant) {
-        startNewNmtSession(activeSubject, activeVariant, selectedNmtVariantIndex, activeCards.length);
+        startNewNmtSession(activeSubject, activeVariant, selectedNmtVariantIndex, activeCards);
       }
       renderNmtSection(selectedNmtYear, selectedNmtSubject, 0, selectedNmtVariantIndex);
     });
@@ -3116,7 +2470,8 @@ function renderNmtSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, button.dataset.nmtSelect, "choice");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), button.dataset.nmtSelect, "choice");
       renderNmtSection(selectedNmtYear, selectedNmtSubject, selectedNmtCardIndex);
     });
   });
@@ -3147,7 +2502,8 @@ function renderNmtSection(
         return;
       }
       const selected = nmtDraftSelections[getNmtDraftKey(card)] || [];
-      recordNmtAnswer(card, selected.join(";"), "multi");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), selected.join(";"), "multi");
       renderNmtSection(selectedNmtYear, selectedNmtSubject, selectedNmtCardIndex);
     });
   });
@@ -3159,7 +2515,8 @@ function renderNmtSection(
         return;
       }
       const input = document.getElementById("nmtOpenAnswer");
-      recordNmtAnswer(card, input?.value || "", "input");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), input?.value || "", "input");
       renderNmtSection(selectedNmtYear, selectedNmtSubject, selectedNmtCardIndex);
     });
   });
@@ -3170,7 +2527,8 @@ function renderNmtSection(
       if (!card || getNmtSessionAnswer(findNmtSession(getNmtStats(), activeNmtSessionId), card.number)) {
         return;
       }
-      recordNmtAnswer(card, "", "reveal");
+      const session = findNmtSession(getNmtStats(), activeNmtSessionId);
+      recordNmtAnswer(getNmtSessionCard(card, session), "", "reveal");
       renderNmtSection(selectedNmtYear, selectedNmtSubject, selectedNmtCardIndex);
     });
   });
@@ -3200,6 +2558,7 @@ function renderNmtVariant(variant, variantIndex = 0) {
     <section class="nmt-variant">
       ${cards.length ? `
         <div class="nmt-session-strip">
+          <strong>${escapeHtml(nmtData.years?.[selectedNmtYear]?.subjects?.[selectedNmtSubject]?.label || selectedNmtSubject)} · ${escapeHtml(variant.label || "Варіант")}${variant.session ? ` · ${escapeHtml(variant.session)}` : ""}</strong>
           <span>Старт: ${formatDateTime(session.startedAt)}</span>
           <span>${session.correctCount} правильних · ${session.wrongCount} неправильних · ${session.answeredCount}/${session.total} · ${escapeHtml(renderNmtGradeLabel(session))}</span>
           <button class="ghost-action" type="button" data-nmt-restart>Почати заново</button>
@@ -3220,33 +2579,8 @@ function renderNmtVariant(variant, variantIndex = 0) {
   `;
 }
 
-function getNmtCardPresentation(card, session) {
-  const response = getNmtSessionAnswer(session, card.number);
-  if (card.type !== "single" || card.options?.length !== 4 || !session) return { card, response };
-  const keys = card.options.map(option => option.key);
-  let order = session.optionOrders?.[card.number];
-  if (!Array.isArray(order) || order.length !== keys.length || new Set(order).size !== keys.length || !order.every(key => keys.includes(key))) {
-    if (response) return { card, response }; // Preserve earlier answered cards.
-    order = [...keys];
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
-    }
-    session.optionOrders = { ...(session.optionOrders || {}), [card.number]: order };
-    const stats = getNmtStats();
-    const saved = findNmtSession(stats, session.id);
-    if (saved) { saved.optionOrders = session.optionOrders; saveNmtStats(stats); }
-  }
-  const displayKey = key => keys[order.indexOf(key)] || key;
-  return {
-    card: { ...card, options: order.map((key, i) => ({ ...card.options.find(option => option.key === key), key: keys[i] })), correctKey: displayKey(card.correctKey) },
-    response: response ? { ...response, selectedKey: displayKey(response.selectedKey), correctKey: displayKey(response.correctKey) } : null
-  };
-}
-
-function renderNmtCard(card, index, total, session) {
-  const presentation = getNmtCardPresentation(card, session);
-  card = presentation.card;
+function renderNmtCard(sourceCard, index, total, session) {
+  const card = getNmtSessionCard(sourceCard, session);
   const number = card.number || index + 1;
   const topic = card.topic || "Завдання НМТ";
   const isMatching = card.type === "matching";
@@ -3255,7 +2589,7 @@ function renderNmtCard(card, index, total, session) {
   const isMulti = card.type === "multi";
   const question = card.questionHtml || card.front || `Завдання ${number}`;
   const correctKey = card.correctKey || card.key || "";
-  const response = presentation.response;
+  const response = getNmtSessionAnswer(session, number);
   const typeLabel = isMatching
     ? "Встановлення відповідності"
     : isInput
@@ -3487,7 +2821,7 @@ function renderNmtCorrectPairs(pairs, fallback) {
 }
 
 function sanitizeNmtHtml(value) {
-  const allowed = ["pre", "code", "p", "br", "b", "strong", "i", "em", "u", "sup", "sub", "ul", "ol", "li", "img"];
+  const allowed = ["p", "br", "b", "strong", "i", "em", "u", "sup", "sub", "ul", "ol", "li", "img"];
   return String(value || "")
     .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
     .replace(/<img\b([^>]*)>/gi, (match, attrs) => {
@@ -3518,34 +2852,312 @@ function renderStaticSection(title, paragraphs) {
   `;
 }
 
-backButton.addEventListener("click", goBack);
-homeButton.addEventListener("click", () => openView("ukraine"));
-mapImage.addEventListener("error", showLoadError);
-menuToggle.addEventListener("click", () => {
-  if (mainMenu.classList.contains("is-open")) {
-    closeMenu();
-    return;
+function getSchedulePhotoUserKey() {
+  const profile = getProfile();
+  const identity = profile.id || buildUserId(profile);
+  if (identity) return `profile:${identity}`;
+  const profileName = normalizeText(profile.name);
+  if (profileName) return `profile-name:${profileName}:${String(profile.placeCode || "").trim()}`;
+
+  try {
+    let guestId = localStorage.getItem(scheduleGuestIdStorageKey);
+    if (!guestId) {
+      guestId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(scheduleGuestIdStorageKey, guestId);
+    }
+    return `guest:${guestId}`;
+  } catch {
+    scheduleFallbackGuestId ||= window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `guest:${scheduleFallbackGuestId}`;
   }
-  openMenu();
-});
+}
+
+function openSchedulePhotoDatabase() {
+  if (!window.indexedDB) return Promise.reject(new Error("IndexedDB is unavailable"));
+  if (schedulePhotoDbPromise) return schedulePhotoDbPromise;
+
+  schedulePhotoDbPromise = new Promise((resolve, reject) => {
+    const request = window.indexedDB.open(schedulePhotoDatabaseName, 1);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(schedulePhotoStoreName)) {
+        database.createObjectStore(schedulePhotoStoreName, { keyPath: "userKey" });
+      }
+    };
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => database.close();
+      resolve(database);
+    };
+    request.onerror = () => reject(request.error || new Error("Could not open schedule storage"));
+    request.onblocked = () => reject(new Error("Schedule storage is blocked"));
+  });
+  schedulePhotoDbPromise.catch(() => { schedulePhotoDbPromise = null; });
+  return schedulePhotoDbPromise;
+}
+
+function runSchedulePhotoTransaction(mode, createRequest) {
+  return openSchedulePhotoDatabase().then(database => new Promise((resolve, reject) => {
+    let transaction;
+    let request;
+    try {
+      transaction = database.transaction(schedulePhotoStoreName, mode);
+      request = createRequest(transaction.objectStore(schedulePhotoStoreName));
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    let result;
+    request.onsuccess = () => { result = request.result; };
+    request.onerror = () => reject(request.error || new Error("Schedule storage request failed"));
+    transaction.oncomplete = () => resolve(result);
+    transaction.onerror = () => reject(transaction.error || new Error("Schedule storage transaction failed"));
+    transaction.onabort = () => reject(transaction.error || new Error("Schedule storage transaction was cancelled"));
+  }));
+}
+
+function readSchedulePhoto(userKey) {
+  return runSchedulePhotoTransaction("readonly", store => store.get(userKey));
+}
+
+function writeSchedulePhoto(record) {
+  return runSchedulePhotoTransaction("readwrite", store => store.put(record));
+}
+
+function removeSchedulePhoto(userKey) {
+  return runSchedulePhotoTransaction("readwrite", store => store.delete(userKey));
+}
+
+function compressSchedulePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const sourceUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const maxSide = 2400;
+        const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Image processing is unavailable");
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(sourceUrl);
+          if (blob) resolve(blob);
+          else reject(new Error("Image compression failed"));
+        }, "image/jpeg", 0.86);
+      } catch (error) {
+        URL.revokeObjectURL(sourceUrl);
+        reject(error);
+      }
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(sourceUrl);
+      reject(new Error("Image could not be opened"));
+    };
+    image.src = sourceUrl;
+  });
+}
+
+function renderScheduleSection() {
+  const english = window.OCEANUA_LOCALE?.language === "en";
+  const userKey = getSchedulePhotoUserKey();
+  const renderToken = ++scheduleRenderToken;
+  if (schedulePhotoObjectUrl) URL.revokeObjectURL(schedulePhotoObjectUrl);
+  schedulePhotoObjectUrl = "";
+
+  const copy = english ? {
+    eyebrow: "PERSONAL SCHEDULE",
+    title: "Class schedule",
+    hint: "Take a photo of your class schedule or choose an image from your device. It will be saved in this browser for your profile.",
+    storage: "The photo stays on this device and is not synced to other devices.",
+    take: "Take a photo",
+    choose: "Choose a photo",
+    remove: "Remove photo",
+    loading: "Loading the saved photo…",
+    empty: "No schedule photo yet. Use the button above to add one.",
+    saved: "Photo saved in this browser for the current profile.",
+    savedAt: "Saved",
+    open: "Tap the photo to view it at full size.",
+    unsupported: "This browser cannot open local photo storage. Try another browser or device.",
+    failed: "The photo could not be loaded or saved. Check available storage and try again.",
+    tooLarge: "This photo is larger than 30 MB. Choose a smaller image.",
+    notImage: "Choose an image file, such as JPG, PNG, or WebP.",
+    processing: "Preparing and saving the photo…",
+    confirmRemove: "Remove this schedule photo from this browser?",
+    removed: "Schedule photo removed from this browser."
+  } : {
+    eyebrow: "ОСОБИСТИЙ РОЗКЛАД",
+    title: "Розклад занять",
+    hint: "Сфотографуйте розклад телефоном або виберіть готове фото з пристрою. Знімок збережеться в цьому браузері для вашого профілю.",
+    storage: "Фото залишиться на цьому пристрої й не синхронізується з іншими пристроями.",
+    take: "Зробити фото",
+    choose: "Вибрати фото",
+    remove: "Видалити фото",
+    loading: "Завантаження збереженого фото…",
+    empty: "Фото розкладу ще немає. Додайте його кнопкою вище.",
+    saved: "Фото збережено в цьому браузері для поточного профілю.",
+    savedAt: "Збережено",
+    open: "Натисніть на фото, щоб відкрити його у повному розмірі.",
+    unsupported: "Цей браузер не підтримує локальне сховище фото. Спробуйте інший браузер або пристрій.",
+    failed: "Не вдалося завантажити або зберегти фото. Перевірте вільне місце й спробуйте ще раз.",
+    tooLarge: "Розмір фото перевищує 30 МБ. Виберіть менше зображення.",
+    notImage: "Виберіть файл зображення, наприклад JPG, PNG або WebP.",
+    processing: "Підготовка та збереження фото…",
+    confirmRemove: "Видалити це фото розкладу з цього браузера?",
+    removed: "Фото розкладу видалено з цього браузера."
+  };
+
+  menuContent.innerHTML = `
+    <div class="schedule-page">
+      <div class="content-head">
+        <span>${copy.eyebrow}</span>
+        <h2>${copy.title}</h2>
+        <p>${copy.hint}</p>
+        <p class="schedule-storage-note">${copy.storage}</p>
+      </div>
+      <section class="schedule-photo-card" aria-label="${english ? "Schedule photo" : "Фото розкладу"}">
+        <div class="schedule-photo-actions">
+          <input class="schedule-file-input" id="scheduleCameraInput" type="file" accept="image/*" capture="environment">
+          <label class="primary-action schedule-upload-label" for="scheduleCameraInput">${copy.take}</label>
+          <input class="schedule-file-input" id="schedulePhotoInput" type="file" accept="image/*">
+          <label class="primary-action schedule-upload-label" for="schedulePhotoInput">${copy.choose}</label>
+          <button class="ghost-action" id="removeSchedulePhoto" type="button" hidden>${copy.remove}</button>
+        </div>
+        <p class="schedule-photo-status" id="schedulePhotoStatus" role="status" aria-live="polite">${copy.loading}</p>
+        <figure class="schedule-photo-preview" id="schedulePhotoPreview" hidden>
+          <a id="openSchedulePhoto" target="_blank" rel="noopener">
+            <img id="schedulePhotoImage" alt="${english ? "Uploaded class schedule" : "Завантажений розклад занять"}">
+          </a>
+          <figcaption id="schedulePhotoCaption">${copy.open}</figcaption>
+        </figure>
+      </section>
+    </div>
+  `;
+
+  const inputs = [...menuContent.querySelectorAll(".schedule-file-input")];
+  const status = menuContent.querySelector("#schedulePhotoStatus");
+  const preview = menuContent.querySelector("#schedulePhotoPreview");
+  const image = menuContent.querySelector("#schedulePhotoImage");
+  const openLink = menuContent.querySelector("#openSchedulePhoto");
+  const removeButton = menuContent.querySelector("#removeSchedulePhoto");
+  const isCurrentView = () => renderToken === scheduleRenderToken
+    && menuContent.dataset.activeSection === "schedule";
+
+  inputs.forEach(input => input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      status.textContent = copy.notImage;
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      status.textContent = copy.tooLarge;
+      return;
+    }
+
+    inputs.forEach(item => { item.disabled = true; });
+    status.textContent = copy.processing;
+    try {
+      const blob = await compressSchedulePhoto(file);
+      await writeSchedulePhoto({
+        userKey,
+        blob,
+        originalName: file.name || "schedule-photo",
+        updatedAt: new Date().toISOString()
+      });
+      if (!isCurrentView()) return;
+      status.textContent = copy.saved;
+      await loadSchedulePhoto(userKey, renderToken, copy, { status, preview, image, openLink, removeButton });
+    } catch {
+      if (!isCurrentView()) return;
+      status.textContent = copy.failed;
+    } finally {
+      if (isCurrentView()) inputs.forEach(item => { item.disabled = false; });
+    }
+  }));
+
+  removeButton.addEventListener("click", async () => {
+    if (!window.confirm(copy.confirmRemove)) return;
+    removeButton.disabled = true;
+    try {
+      await removeSchedulePhoto(userKey);
+      if (!isCurrentView()) return;
+      if (schedulePhotoObjectUrl) URL.revokeObjectURL(schedulePhotoObjectUrl);
+      schedulePhotoObjectUrl = "";
+      image.removeAttribute("src");
+      openLink.removeAttribute("href");
+      preview.hidden = true;
+      removeButton.hidden = true;
+      status.textContent = copy.removed;
+    } catch {
+      if (isCurrentView()) status.textContent = copy.failed;
+    } finally {
+      if (isCurrentView()) removeButton.disabled = false;
+    }
+  });
+
+  loadSchedulePhoto(userKey, renderToken, copy, { status, preview, image, openLink, removeButton });
+}
+
+async function loadSchedulePhoto(userKey, renderToken, copy, elements) {
+  const { status, preview, image, openLink, removeButton } = elements;
+  try {
+    const record = await readSchedulePhoto(userKey);
+    if (renderToken !== scheduleRenderToken || menuContent.dataset.activeSection !== "schedule") return;
+    if (!record?.blob) {
+      preview.hidden = true;
+      removeButton.hidden = true;
+      status.textContent = copy.empty;
+      return;
+    }
+    if (schedulePhotoObjectUrl) URL.revokeObjectURL(schedulePhotoObjectUrl);
+    schedulePhotoObjectUrl = URL.createObjectURL(record.blob);
+    image.src = schedulePhotoObjectUrl;
+    openLink.href = schedulePhotoObjectUrl;
+    preview.hidden = false;
+    removeButton.hidden = false;
+    const savedAt = record.updatedAt
+      ? new Date(record.updatedAt).toLocaleString(copy.savedAt === "Saved" ? "en-US" : "uk-UA", { dateStyle: "medium", timeStyle: "short" })
+      : "";
+    status.textContent = savedAt ? `${copy.savedAt}: ${savedAt}` : copy.saved;
+  } catch {
+    if (renderToken !== scheduleRenderToken || menuContent.dataset.activeSection !== "schedule") return;
+    status.textContent = window.indexedDB ? copy.failed : copy.unsupported;
+  }
+}
+
+function renderOasisSection() {
+  const english = window.OCEANUA_LOCALE?.language === "en";
+  menuContent.innerHTML = `
+    <iframe
+      class="oasis-module-frame"
+      title="${english ? "Interactive STEM module “Oasis Ecosystem”" : "Інтерактивний STEM-модуль «Екосистема Оазис»"}"
+      src="modules/oasis/index.html?v=20261120-2307"
+      loading="eager"
+      style="display:block;width:100%;height:calc(100dvh - 120px);min-height:620px;margin-top:48px;border:0;border-radius:16px;background:#f4f5ef"
+    ></iframe>
+  `;
+  const frame = menuContent.querySelector(".oasis-module-frame");
+  frame.addEventListener("load", () => {
+    frame.contentWindow?.postMessage({ type: "oceanua-language", language: english ? "en" : "uk" }, window.location.origin);
+  }, { once: true });
+}
+
+menuToggle.addEventListener("click", returnHome);
+sectionBack.addEventListener("click", returnHome);
 profileEntry.addEventListener("click", () => openMenu("profile"));
-closeMenuButton.addEventListener("click", closeMenu);
-drawerBackdrop.addEventListener("click", closeMenu);
+window.addEventListener("oceanua-language-change", () => {
+  renderMenu(activeMenuId);
+  updateProfileStatus();
+});
 
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && mainMenu.classList.contains("is-open")) {
-    closeMenu();
-    return;
-  }
-  if (event.key === "Escape" && currentViewId !== "ukraine") {
-    goBack();
-  }
-});
-
-window.addEventListener("hashchange", () => {
-  if (suppressHashChange) return;
-  const viewId = location.hash.replace(/^#/, "");
-  openView(viewId || "ukraine", false);
+  if (event.key === "Escape" && oceanuaApp.classList.contains("is-section-view")) returnHome();
 });
 
 if ("serviceWorker" in navigator) {
@@ -3555,22 +3167,4 @@ if ("serviceWorker" in navigator) {
 }
 
 updateProfileStatus();
-renderMenu("cities");
-openView(location.hash.replace(/^#/, "") || "ukraine", false);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+returnHome();

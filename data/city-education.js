@@ -3,7 +3,6 @@ window.OCEANUA_CITY_EDUCATION = {
   "UA51040010010048834": {
     "name": "Білгород-Дністровський",
     "checkedAt": "04.10.2026",
-    "mapTarget": "bilhorod-dnistrovskyi-city",
     "schools": [
       {
         "id": "16684",
